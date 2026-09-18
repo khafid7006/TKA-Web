@@ -1,5 +1,6 @@
 import { SEED_PASSAGES, SEED_QUESTIONS } from '../data/seedData';
 import { Passage, Question, QuizResult } from '../types';
+import { firestoreService } from './firebase';
 
 const STORAGE_KEYS = {
   PASSAGES: 'tka_passages',
@@ -65,6 +66,26 @@ export const storageService = {
     safeSet(STORAGE_KEYS.RESULTS, []);
     safeSet(STORAGE_KEYS.INITIALIZED, 'true');
     notifyStorageChange();
+
+    // Sync seed passages and questions to Firestore
+    SEED_PASSAGES.forEach((p) => firestoreService.savePassage(p).catch(() => {}));
+    SEED_QUESTIONS.forEach((q) => firestoreService.saveQuestion(q).catch(() => {}));
+  },
+
+  // Cloud sync callbacks
+  syncFromCloudPassages(cloudPassages: Passage[]) {
+    safeSet(STORAGE_KEYS.PASSAGES, cloudPassages);
+    notifyStorageChange();
+  },
+
+  syncFromCloudQuestions(cloudQuestions: Question[]) {
+    safeSet(STORAGE_KEYS.QUESTIONS, cloudQuestions);
+    notifyStorageChange();
+  },
+
+  syncFromCloudResults(cloudResults: QuizResult[]) {
+    safeSet(STORAGE_KEYS.RESULTS, cloudResults);
+    notifyStorageChange();
   },
 
   // PASSAGES
@@ -89,6 +110,12 @@ export const storageService = {
     list.unshift(newPassage);
     safeSet(STORAGE_KEYS.PASSAGES, list);
     notifyStorageChange();
+
+    // Sync to Firestore
+    firestoreService.savePassage(newPassage).catch((err) => {
+      console.warn('Firestore write passage warning:', err);
+    });
+
     return newPassage;
   },
 
@@ -106,6 +133,12 @@ export const storageService = {
     list[index] = updated;
     safeSet(STORAGE_KEYS.PASSAGES, list);
     notifyStorageChange();
+
+    // Sync to Firestore
+    firestoreService.savePassage(updated).catch((err) => {
+      console.warn('Firestore update passage warning:', err);
+    });
+
     return updated;
   },
 
@@ -116,13 +149,15 @@ export const storageService = {
 
     safeSet(STORAGE_KEYS.PASSAGES, filtered);
 
-    // Also unassign or keep questions safe when passage is deleted
+    // Also unassign questions referencing this passage
     const questions = this.getQuestions();
     let questionsUpdated = false;
     const updatedQuestions = questions.map((q) => {
       if (q.passageId === id) {
         questionsUpdated = true;
-        return { ...q, passageId: '' };
+        const modified = { ...q, passageId: '' };
+        firestoreService.saveQuestion(modified).catch(() => {});
+        return modified;
       }
       return q;
     });
@@ -131,6 +166,12 @@ export const storageService = {
     }
 
     notifyStorageChange();
+
+    // Delete in Firestore
+    firestoreService.deletePassage(id).catch((err) => {
+      console.warn('Firestore delete passage warning:', err);
+    });
+
     return true;
   },
 
@@ -160,6 +201,12 @@ export const storageService = {
     list.unshift(newQuestion);
     safeSet(STORAGE_KEYS.QUESTIONS, list);
     notifyStorageChange();
+
+    // Sync to Firestore
+    firestoreService.saveQuestion(newQuestion).catch((err) => {
+      console.warn('Firestore write question warning:', err);
+    });
+
     return newQuestion;
   },
 
@@ -177,6 +224,12 @@ export const storageService = {
     list[index] = updated;
     safeSet(STORAGE_KEYS.QUESTIONS, list);
     notifyStorageChange();
+
+    // Sync to Firestore
+    firestoreService.saveQuestion(updated).catch((err) => {
+      console.warn('Firestore update question warning:', err);
+    });
+
     return updated;
   },
 
@@ -187,6 +240,12 @@ export const storageService = {
 
     safeSet(STORAGE_KEYS.QUESTIONS, filtered);
     notifyStorageChange();
+
+    // Delete in Firestore
+    firestoreService.deleteQuestion(id).catch((err) => {
+      console.warn('Firestore delete question warning:', err);
+    });
+
     return true;
   },
 
@@ -202,6 +261,11 @@ export const storageService = {
     list.unshift(result);
     safeSet(STORAGE_KEYS.RESULTS, list);
     notifyStorageChange();
+
+    // Sync to Firestore
+    firestoreService.saveQuizResult(result).catch((err) => {
+      console.warn('Firestore write quiz result warning:', err);
+    });
   },
 
   deleteQuizResult(id: string): boolean {
@@ -211,12 +275,22 @@ export const storageService = {
 
     safeSet(STORAGE_KEYS.RESULTS, filtered);
     notifyStorageChange();
+
+    // Delete in Firestore
+    firestoreService.deleteQuizResult(id).catch((err) => {
+      console.warn('Firestore delete quiz result warning:', err);
+    });
+
     return true;
   },
 
   clearQuizResults(): void {
+    const results = this.getQuizResults();
     safeSet(STORAGE_KEYS.RESULTS, []);
     notifyStorageChange();
+
+    // Delete all from Firestore
+    results.forEach((r) => firestoreService.deleteQuizResult(r.id).catch(() => {}));
   },
 
   // ANALYTICS & STATS

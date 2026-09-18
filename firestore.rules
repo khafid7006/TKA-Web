@@ -1,0 +1,95 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default deny all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        (request.auth.token.email == 'khafidmaulana1306@gmail.com' && request.auth.token.email_verified == true) ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    // Passage validation
+    function isValidPassage(data) {
+      return data.title is string && data.title.size() > 0 && data.title.size() <= 255
+        && data.content is string && data.content.size() > 0 && data.content.size() <= 10000
+        && data.category is string && data.category.size() <= 100
+        && data.status in ['published', 'draft'];
+    }
+
+    // Question validation
+    function isValidQuestion(data) {
+      return data.question is string && data.question.size() > 0 && data.question.size() <= 2000
+        && data.options is map
+        && data.correctAnswer in ['A', 'B', 'C', 'D', 'E']
+        && data.category is string && data.category.size() <= 100
+        && data.difficulty in ['Mudah', 'Sedang', 'Sulit']
+        && data.status in ['published', 'draft'];
+    }
+
+    // Quiz Result validation
+    function isValidQuizResult(data) {
+      return data.studentName is string && data.studentName.size() > 0 && data.studentName.size() <= 128
+        && data.totalQuestions is number && data.totalQuestions >= 0 && data.totalQuestions <= 200
+        && data.correctAnswers is number && data.correctAnswers >= 0 && data.correctAnswers <= 200
+        && data.wrongAnswers is number && data.wrongAnswers >= 0 && data.wrongAnswers <= 200
+        && data.score is number && data.score >= 0
+        && data.percentage is number && data.percentage >= 0 && data.percentage <= 100;
+    }
+
+    // Passages collection
+    match /passages/{passageId} {
+      allow get: if isValidId(passageId);
+      allow list: if true;
+      allow create: if isValidId(passageId) && isValidPassage(incoming());
+      allow update: if isValidId(passageId) && isValidPassage(incoming());
+      allow delete: if isValidId(passageId);
+    }
+
+    // Questions collection
+    match /questions/{questionId} {
+      allow get: if isValidId(questionId);
+      allow list: if true;
+      allow create: if isValidId(questionId) && isValidQuestion(incoming());
+      allow update: if isValidId(questionId) && isValidQuestion(incoming());
+      allow delete: if isValidId(questionId);
+    }
+
+    // Quiz Results collection
+    match /quiz_results/{resultId} {
+      allow get: if isValidId(resultId);
+      allow list: if true;
+      allow create: if isValidId(resultId) && isValidQuizResult(incoming());
+      allow update: if isValidId(resultId) && isValidQuizResult(incoming());
+      allow delete: if isValidId(resultId);
+    }
+
+    // Admin collection
+    match /admins/{adminId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+  }
+}

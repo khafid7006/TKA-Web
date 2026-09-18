@@ -1,0 +1,186 @@
+{
+  "entities": {
+    "Passage": {
+      "title": "Passage",
+      "description": "Reading text passage used as reference for TKA questions",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier of the passage",
+          "maxLength": 128
+        },
+        "title": {
+          "type": "string",
+          "description": "Title of the reading passage",
+          "maxLength": 255
+        },
+        "content": {
+          "type": "string",
+          "description": "Full text content of the passage",
+          "maxLength": 10000
+        },
+        "source": {
+          "type": "string",
+          "description": "Source citation of the text",
+          "maxLength": 255
+        },
+        "category": {
+          "type": "string",
+          "description": "Subject category",
+          "maxLength": 100
+        },
+        "status": {
+          "type": "string",
+          "description": "Publication status",
+          "enum": ["published", "draft"]
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Creation timestamp in ISO format"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Last updated timestamp in ISO format"
+        }
+      },
+      "required": ["title", "content", "category", "status"]
+    },
+    "Question": {
+      "title": "Question",
+      "description": "Multiple-choice question for TKA SMA Bahasa Indonesia",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier of the question",
+          "maxLength": 128
+        },
+        "passageId": {
+          "type": "string",
+          "description": "Associated passage document ID",
+          "maxLength": 128
+        },
+        "question": {
+          "type": "string",
+          "description": "Question statement text",
+          "maxLength": 2000
+        },
+        "options": {
+          "type": "object",
+          "description": "Options A through E"
+        },
+        "correctAnswer": {
+          "type": "string",
+          "description": "Correct answer letter",
+          "enum": ["A", "B", "C", "D", "E"]
+        },
+        "explanation": {
+          "type": "string",
+          "description": "Detailed explanation of the solution",
+          "maxLength": 3000
+        },
+        "category": {
+          "type": "string",
+          "description": "Question category",
+          "maxLength": 100
+        },
+        "difficulty": {
+          "type": "string",
+          "description": "Difficulty level",
+          "enum": ["Mudah", "Sedang", "Sulit"]
+        },
+        "status": {
+          "type": "string",
+          "description": "Publication status",
+          "enum": ["published", "draft"]
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Creation timestamp"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Update timestamp"
+        }
+      },
+      "required": ["question", "options", "correctAnswer", "category", "difficulty", "status"]
+    },
+    "QuizResult": {
+      "title": "QuizResult",
+      "description": "Student quiz attempt score and evaluation record",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique result ID",
+          "maxLength": 128
+        },
+        "date": {
+          "type": "string",
+          "description": "Date of attempt"
+        },
+        "studentName": {
+          "type": "string",
+          "description": "Student name",
+          "maxLength": 128
+        },
+        "passageId": {
+          "type": "string",
+          "description": "Optional tested passage ID",
+          "maxLength": 128
+        },
+        "passageTitle": {
+          "type": "string",
+          "description": "Passage title tested",
+          "maxLength": 255
+        },
+        "totalQuestions": {
+          "type": "number",
+          "description": "Total count of questions"
+        },
+        "correctAnswers": {
+          "type": "number",
+          "description": "Number of correct answers"
+        },
+        "wrongAnswers": {
+          "type": "number",
+          "description": "Number of wrong answers"
+        },
+        "score": {
+          "type": "number",
+          "description": "Raw score"
+        },
+        "percentage": {
+          "type": "number",
+          "description": "Percentage score from 0 to 100"
+        },
+        "answers": {
+          "type": "array",
+          "description": "Detailed breakdown per question"
+        }
+      },
+      "required": ["studentName", "totalQuestions", "correctAnswers", "wrongAnswers", "score", "percentage"]
+    }
+  },
+  "firestore": {
+    "/passages/{passageId}": {
+      "schema": {
+        "$ref": "#/entities/Passage"
+      },
+      "description": "Collection of reading passages"
+    },
+    "/questions/{questionId}": {
+      "schema": {
+        "$ref": "#/entities/Question"
+      },
+      "description": "Collection of multiple choice questions"
+    },
+    "/quiz_results/{resultId}": {
+      "schema": {
+        "$ref": "#/entities/QuizResult"
+      },
+      "description": "Collection of student quiz results"
+    }
+  }
+}

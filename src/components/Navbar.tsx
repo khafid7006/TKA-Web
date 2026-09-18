@@ -8,10 +8,17 @@ import {
   Menu,
   X,
   RotateCcw,
+  Cloud,
+  CloudOff,
+  LogIn,
+  LogOut,
+  ShieldCheck,
+  User as UserIcon,
 } from 'lucide-react';
 import { ViewMode } from '../types';
 import { storageService } from '../services/storageService';
 import { useToast } from './Toast';
+import { useFirebase } from '../context/FirebaseContext';
 
 interface NavbarProps {
   currentView: ViewMode;
@@ -21,6 +28,7 @@ interface NavbarProps {
 export const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { showToast } = useToast();
+  const { user, isConnected, isAdmin, login, logout, isSyncing } = useFirebase();
 
   const navItems: { id: ViewMode; label: string; icon: React.FC<{ className?: string }> }[] = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -34,6 +42,24 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate }) => {
     if (window.confirm('Reset semua data ke soal & bacaan awal bawaan COBA.html?')) {
       storageService.resetToDefaultSeed();
       showToast('Data berhasil di-reset ke pengaturan awal', 'info');
+    }
+  };
+
+  const handleLogin = async () => {
+    try {
+      await login();
+      showToast('Berhasil masuk dengan akun Google', 'success');
+    } catch (e) {
+      showToast('Gagal masuk dengan Google', 'error');
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      showToast('Berhasil keluar', 'info');
+    } catch (e) {
+      showToast('Gagal keluar', 'error');
     }
   };
 
@@ -56,9 +82,14 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate }) => {
                   2026
                 </span>
               </h1>
-              <p className="text-xs text-blue-200 hidden sm:block">
-                Sistem Manajemen Bank Soal & Kuis Pemahaman Tekstual
-              </p>
+              <div className="flex items-center gap-2 text-xs text-blue-200 hidden sm:flex">
+                <span>Manajemen Bank Soal & Kuis</span>
+                <span>•</span>
+                <span className="inline-flex items-center gap-1 text-[11px] text-emerald-300">
+                  <Cloud className="w-3 h-3 text-emerald-400" />
+                  <span>Firebase Firestore</span>
+                </span>
+              </div>
             </div>
           </div>
 
@@ -89,14 +120,60 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate }) => {
               );
             })}
 
-            {/* Quick reset button */}
-            <button
-              onClick={handleResetData}
-              title="Reset data ke bawaan COBA.html"
-              className="ml-2 p-2 rounded-xl text-blue-200 hover:text-white hover:bg-white/10 transition"
-            >
-              <RotateCcw className="w-4 h-4" />
-            </button>
+            {/* User Auth Info / Login */}
+            <div className="ml-2 pl-2 border-l border-white/20 flex items-center gap-2">
+              {user ? (
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 bg-white/10 py-1 px-2.5 rounded-xl text-xs">
+                    {user.photoURL ? (
+                      <img
+                        src={user.photoURL}
+                        alt="Profile"
+                        className="w-5 h-5 rounded-full"
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : (
+                      <UserIcon className="w-4 h-4 text-blue-200" />
+                    )}
+                    <span className="max-w-[100px] truncate font-medium">
+                      {user.displayName || user.email?.split('@')[0]}
+                    </span>
+                    {isAdmin && (
+                      <span
+                        title="Admin Verified"
+                        className="bg-amber-400 text-slate-950 text-[10px] font-extrabold px-1 rounded"
+                      >
+                        ADMIN
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    onClick={handleLogout}
+                    title="Keluar"
+                    className="p-1.5 rounded-lg text-blue-200 hover:text-rose-300 hover:bg-white/10 transition"
+                  >
+                    <LogOut className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={handleLogin}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold transition border border-white/20"
+                >
+                  <LogIn className="w-3.5 h-3.5 text-amber-300" />
+                  <span>Masuk Google</span>
+                </button>
+              )}
+
+              {/* Quick reset button */}
+              <button
+                onClick={handleResetData}
+                title="Reset data ke bawaan COBA.html"
+                className="p-2 rounded-xl text-blue-200 hover:text-white hover:bg-white/10 transition"
+              >
+                <RotateCcw className="w-4 h-4" />
+              </button>
+            </div>
           </nav>
 
           {/* Mobile hamburger button */}
@@ -122,6 +199,40 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate }) => {
       {/* Mobile Drawer */}
       {mobileMenuOpen && (
         <div className="md:hidden bg-[#162e58] border-t border-white/10 px-4 py-3 space-y-1">
+          {user ? (
+            <div className="flex items-center justify-between p-2 mb-2 bg-white/10 rounded-xl text-xs">
+              <div className="flex items-center gap-2">
+                {user.photoURL && (
+                  <img
+                    src={user.photoURL}
+                    alt="User"
+                    className="w-6 h-6 rounded-full"
+                    referrerPolicy="no-referrer"
+                  />
+                )}
+                <div>
+                  <div className="font-bold">{user.displayName || user.email}</div>
+                  {isAdmin && <span className="text-amber-300 font-bold">Admin</span>}
+                </div>
+              </div>
+              <button
+                onClick={handleLogout}
+                className="text-rose-300 hover:underline text-xs flex items-center gap-1"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                Keluar
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={handleLogin}
+              className="w-full flex items-center justify-center gap-2 p-2.5 mb-2 rounded-xl bg-amber-400 text-slate-950 font-bold text-xs"
+            >
+              <LogIn className="w-4 h-4" />
+              Masuk dengan Google
+            </button>
+          )}
+
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = currentView === item.id;
@@ -143,8 +254,12 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate }) => {
               </button>
             );
           })}
+
           <div className="pt-2 border-t border-white/10 mt-2 flex justify-between items-center text-xs text-blue-200">
-            <span>Basis Data: LocalStorage</span>
+            <span className="flex items-center gap-1 text-emerald-300">
+              <Cloud className="w-3.5 h-3.5" />
+              Cloud: Firestore Aktif
+            </span>
             <button
               onClick={() => {
                 handleResetData();
