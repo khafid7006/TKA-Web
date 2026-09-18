@@ -41,12 +41,75 @@ export const auth = getAuth(app);
 // Authentication helper
 export const googleProvider = new GoogleAuthProvider();
 
+export const formatAuthErrorMessage = (error: unknown): string => {
+  const errCode = (error as { code?: string })?.code || '';
+  const errStr = error instanceof Error ? error.message : String(error);
+
+  if (
+    errCode === 'auth/unauthorized-domain' ||
+    errStr.includes('auth/unauthorized-domain') ||
+    errStr.includes('unauthorized-domain')
+  ) {
+    return 'Domain aplikasi belum terdaftar di Firebase Authorized Domains. Harap daftarkan tka-web-three.vercel.app di Firebase Console.';
+  }
+
+  if (
+    errCode === 'auth/user-not-found' ||
+    errCode === 'auth/wrong-password' ||
+    errCode === 'auth/invalid-credential' ||
+    errStr.includes('user-not-found') ||
+    errStr.includes('invalid-credential')
+  ) {
+    return 'Email atau kata sandi tidak sesuai.';
+  }
+
+  if (
+    errCode === 'auth/email-already-in-use' ||
+    errStr.includes('email-already-in-use')
+  ) {
+    return 'Email ini sudah terdaftar. Silakan pilih tab Masuk.';
+  }
+
+  if (
+    errCode === 'auth/weak-password' ||
+    errStr.includes('weak-password')
+  ) {
+    return 'Kata sandi terlalu lemah. Gunakan minimal 6 karakter.';
+  }
+
+  if (
+    errCode === 'auth/invalid-email' ||
+    errStr.includes('invalid-email')
+  ) {
+    return 'Format alamat email tidak valid.';
+  }
+
+  if (
+    errCode === 'auth/popup-closed-by-user' ||
+    errStr.includes('popup-closed-by-user')
+  ) {
+    return 'Jendela masuk Google ditutup sebelum proses selesai.';
+  }
+
+  if (
+    errCode === 'auth/cancelled-popup-request' ||
+    errStr.includes('cancelled-popup-request')
+  ) {
+    return 'Proses autentikasi popup dibatalkan.';
+  }
+
+  return error instanceof Error ? error.message : 'Terjadi kesalahan pada proses autentikasi.';
+};
+
 export const signInWithGoogle = async () => {
   try {
     return await signInWithPopup(auth, googleProvider);
   } catch (error) {
     console.error('Error signing in with Google:', error);
-    throw error;
+    const friendlyMessage = formatAuthErrorMessage(error);
+    const enhancedError = new Error(friendlyMessage);
+    (enhancedError as unknown as { code?: string }).code = (error as { code?: string })?.code;
+    throw enhancedError;
   }
 };
 
@@ -55,7 +118,10 @@ export const signInWithEmail = async (email: string, pass: string) => {
     return await signInWithEmailAndPassword(auth, email, pass);
   } catch (error) {
     console.error('Error signing in with email:', error);
-    throw error;
+    const friendlyMessage = formatAuthErrorMessage(error);
+    const enhancedError = new Error(friendlyMessage);
+    (enhancedError as unknown as { code?: string }).code = (error as { code?: string })?.code;
+    throw enhancedError;
   }
 };
 
@@ -81,7 +147,10 @@ export const registerWithEmail = async (
     return cred;
   } catch (error) {
     console.error('Error registering with email:', error);
-    throw error;
+    const friendlyMessage = formatAuthErrorMessage(error);
+    const enhancedError = new Error(friendlyMessage);
+    (enhancedError as unknown as { code?: string }).code = (error as { code?: string })?.code;
+    throw enhancedError;
   }
 };
 

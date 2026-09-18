@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useFirebase } from '../context/FirebaseContext';
 import { useToast } from '../components/Toast';
+import { formatAuthErrorMessage } from '../services/firebase';
 import { UserRole } from '../types';
 
 export const LandingPage: React.FC = () => {
@@ -58,18 +59,7 @@ export const LandingPage: React.FC = () => {
       }
     } catch (err: unknown) {
       console.error('Auth error:', err);
-      let msg = 'Terjadi kesalahan pada proses autentikasi.';
-      if (err instanceof Error) {
-        if (err.message.includes('user-not-found') || err.message.includes('invalid-credential')) {
-          msg = 'Email atau kata sandi tidak sesuai.';
-        } else if (err.message.includes('email-already-in-use')) {
-          msg = 'Email ini sudah terdaftar. Silakan pilih tab Masuk.';
-        } else if (err.message.includes('weak-password')) {
-          msg = 'Kata sandi terlalu lemah. Gunakan minimal 6 karakter.';
-        } else if (err.message.includes('invalid-email')) {
-          msg = 'Format alamat email tidak valid.';
-        }
-      }
+      const msg = formatAuthErrorMessage(err);
       setErrorMessage(msg);
       showToast(msg, 'error');
     } finally {
@@ -83,9 +73,9 @@ export const LandingPage: React.FC = () => {
     try {
       await loginWithGoogle();
       showToast('Berhasil masuk dengan Google!', 'success');
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Google login error:', err);
-      const msg = 'Gagal masuk dengan Google. Coba gunakan email & kata sandi.';
+      const msg = formatAuthErrorMessage(err);
       setErrorMessage(msg);
       showToast(msg, 'error');
     } finally {
@@ -172,9 +162,25 @@ export const LandingPage: React.FC = () => {
           </div>
 
           {errorMessage && (
-            <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 flex items-start gap-2 animate-in fade-in">
-              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-500" />
-              <span>{errorMessage}</span>
+            <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-2xl text-xs text-rose-800 flex items-start gap-2.5 animate-in fade-in">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-600" />
+              <div className="space-y-1.5 flex-1">
+                <p className="font-semibold leading-relaxed">{errorMessage}</p>
+                {errorMessage.includes('Authorized Domains') && (
+                  <div className="mt-2 p-2.5 bg-white/90 border border-rose-200/80 rounded-xl text-[11px] text-slate-700 leading-relaxed shadow-sm">
+                    <span className="font-bold text-rose-700 block mb-1">
+                      Langkah Cepat Firebase Console:
+                    </span>
+                    <ol className="list-decimal list-inside space-y-0.5 text-slate-600">
+                      <li>Buka project <strong>proven-bee-vdpgw</strong> di Firebase Console.</li>
+                      <li>Buka menu <strong>Build &rarr; Authentication</strong>.</li>
+                      <li>Pilih tab <strong>Settings</strong> &rarr; klik <strong>Authorized domains</strong>.</li>
+                      <li>Klik tombol <strong>Add domain</strong>.</li>
+                      <li>Ketik <code>tka-web-three.vercel.app</code> dan simpan.</li>
+                    </ol>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
