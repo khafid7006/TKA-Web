@@ -1,0 +1,6 @@
+{
+  "name": "SOAL TKA SMA BAHASA INDONESIA 2026",
+  "description": "Aplikasi interaktif soal TKA SMA Bahasa Indonesia 2026 dengan sistem manajemen bank soal, bacaan, dan kuis interaktif.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
