@@ -1,5 +1,37 @@
 {
   "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile with role-based access information",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Unique identifier matching Firebase Auth UID",
+          "maxLength": 128
+        },
+        "name": {
+          "type": "string",
+          "description": "Full name of the user",
+          "maxLength": 128
+        },
+        "email": {
+          "type": "string",
+          "description": "Email address of the user",
+          "maxLength": 255
+        },
+        "role": {
+          "type": "string",
+          "description": "User role determining permissions",
+          "enum": ["teacher", "student"]
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Registration timestamp in ISO format"
+        }
+      },
+      "required": ["uid", "name", "email", "role"]
+    },
     "Passage": {
       "title": "Passage",
       "description": "Reading text passage used as reference for TKA questions",
@@ -88,7 +120,7 @@
         "difficulty": {
           "type": "string",
           "description": "Difficulty level",
-          "enum": ["Mudah", "Sedang", "Sulit"]
+          "enum": ["mudah", "sedang", "sulit"]
         },
         "status": {
           "type": "string",
@@ -119,6 +151,16 @@
         "date": {
           "type": "string",
           "description": "Date of attempt"
+        },
+        "studentUid": {
+          "type": "string",
+          "description": "UID of the student who took the quiz",
+          "maxLength": 128
+        },
+        "studentEmail": {
+          "type": "string",
+          "description": "Email of the student",
+          "maxLength": 255
         },
         "studentName": {
           "type": "string",
@@ -164,6 +206,12 @@
     }
   },
   "firestore": {
+    "/users/{userId}": {
+      "schema": {
+        "$ref": "#/entities/UserProfile"
+      },
+      "description": "Collection of user profiles for Role-Based Access Control"
+    },
     "/passages/{passageId}": {
       "schema": {
         "$ref": "#/entities/Passage"

@@ -9,11 +9,10 @@ import {
   X,
   RotateCcw,
   Cloud,
-  CloudOff,
-  LogIn,
   LogOut,
-  ShieldCheck,
   User as UserIcon,
+  School,
+  Sparkles,
 } from 'lucide-react';
 import { ViewMode } from '../types';
 import { storageService } from '../services/storageService';
@@ -28,40 +27,40 @@ interface NavbarProps {
 export const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { showToast } = useToast();
-  const { user, isConnected, isAdmin, login, logout, isSyncing } = useFirebase();
+  const { user, userProfile, isTeacher, isStudent, logout } = useFirebase();
 
-  const navItems: { id: ViewMode; label: string; icon: React.FC<{ className?: string }> }[] = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'questions', label: 'Bank Soal', icon: HelpCircle },
-    { id: 'passages', label: 'Kelola Bacaan', icon: BookOpen },
-    { id: 'quiz', label: 'Kuis Siswa', icon: GraduationCap },
-    { id: 'results', label: 'Hasil Quiz', icon: Award },
-  ];
+  // Role-based navigation items
+  const navItems: { id: ViewMode; label: string; icon: React.FC<{ className?: string }> }[] = isTeacher
+    ? [
+        { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+        { id: 'questions', label: 'Bank Soal', icon: HelpCircle },
+        { id: 'passages', label: 'Kelola Bacaan', icon: BookOpen },
+        { id: 'quiz', label: 'Pratinjau Kuis', icon: GraduationCap },
+        { id: 'results', label: 'Hasil Quiz Siswa', icon: Award },
+      ]
+    : [
+        { id: 'quiz', label: 'Mulai Quiz', icon: GraduationCap },
+        { id: 'results', label: 'Riwayat Nilai Saya', icon: Award },
+      ];
 
   const handleResetData = () => {
+    if (!isTeacher) return;
     if (window.confirm('Reset semua data ke soal & bacaan awal bawaan COBA.html?')) {
       storageService.resetToDefaultSeed();
       showToast('Data berhasil di-reset ke pengaturan awal', 'info');
     }
   };
 
-  const handleLogin = async () => {
-    try {
-      await login();
-      showToast('Berhasil masuk dengan akun Google', 'success');
-    } catch (e) {
-      showToast('Gagal masuk dengan Google', 'error');
-    }
-  };
-
   const handleLogout = async () => {
     try {
       await logout();
-      showToast('Berhasil keluar', 'info');
+      showToast('Berhasil keluar dari akun', 'info');
     } catch (e) {
       showToast('Gagal keluar', 'error');
     }
   };
+
+  const displayName = userProfile?.name || user?.displayName || user?.email?.split('@')[0] || 'Pengguna';
 
   return (
     <header className="bg-gradient-to-r from-[#1e3c72] via-[#244685] to-[#2a5298] text-white shadow-lg sticky top-0 z-40">
@@ -69,7 +68,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate }) => {
         <div className="flex items-center justify-between h-18">
           {/* Logo & Brand */}
           <div
-            onClick={() => onNavigate('dashboard')}
+            onClick={() => onNavigate(isTeacher ? 'dashboard' : 'quiz')}
             className="flex items-center gap-3 cursor-pointer group select-none"
           >
             <div className="w-10 h-10 rounded-xl bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20 group-hover:scale-105 transition-transform shadow-inner">
@@ -83,22 +82,22 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate }) => {
                 </span>
               </h1>
               <div className="flex items-center gap-2 text-xs text-blue-200 hidden sm:flex">
-                <span>Manajemen Bank Soal & Kuis</span>
+                <span>{isTeacher ? 'Portal Guru & Pembuat Soal' : 'Simulasi Ujian Siswa'}</span>
                 <span>•</span>
                 <span className="inline-flex items-center gap-1 text-[11px] text-emerald-300">
                   <Cloud className="w-3 h-3 text-emerald-400" />
-                  <span>Firebase Firestore</span>
+                  <span>Cloud Sync</span>
                 </span>
               </div>
             </div>
           </div>
 
           {/* Desktop Navigation Links */}
-          <nav className="hidden md:flex items-center gap-1 lg:gap-2">
+          <nav className="hidden md:flex items-center gap-1.5 lg:gap-2">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = currentView === item.id;
-              const isQuiz = item.id === 'quiz';
+              const isPrimary = item.id === 'quiz';
 
               return (
                 <button
@@ -106,11 +105,11 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate }) => {
                   onClick={() => onNavigate(item.id)}
                   className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs lg:text-sm font-semibold transition-all ${
                     isActive
-                      ? isQuiz
+                      ? isPrimary && isStudent
                         ? 'bg-amber-400 text-slate-950 shadow-md scale-105'
                         : 'bg-white text-[#1e3c72] shadow-md'
-                      : isQuiz
-                      ? 'bg-white/15 text-amber-200 hover:bg-white/25 border border-amber-300/30'
+                      : isPrimary && isStudent
+                      ? 'bg-amber-400/20 text-amber-200 hover:bg-amber-400/30 border border-amber-300/40'
                       : 'text-blue-100 hover:bg-white/10 hover:text-white'
                   }`}
                 >
@@ -120,59 +119,57 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate }) => {
               );
             })}
 
-            {/* User Auth Info / Login */}
+            {/* User Profile & Role Info */}
             <div className="ml-2 pl-2 border-l border-white/20 flex items-center gap-2">
-              {user ? (
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-1.5 bg-white/10 py-1 px-2.5 rounded-xl text-xs">
-                    {user.photoURL ? (
-                      <img
-                        src={user.photoURL}
-                        alt="Profile"
-                        className="w-5 h-5 rounded-full"
-                        referrerPolicy="no-referrer"
-                      />
+              <div className="flex items-center gap-2 bg-white/10 py-1 px-3 rounded-xl text-xs border border-white/15">
+                {user?.photoURL ? (
+                  <img
+                    src={user.photoURL}
+                    alt="Profile"
+                    className="w-5 h-5 rounded-full"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <UserIcon className="w-4 h-4 text-blue-200" />
+                )}
+                <div className="flex flex-col text-left leading-tight">
+                  <span className="max-w-[120px] truncate font-bold text-white text-xs">
+                    {displayName}
+                  </span>
+                  <span className="text-[10px] text-blue-200 flex items-center gap-1">
+                    {isTeacher ? (
+                      <span className="text-amber-300 font-extrabold flex items-center gap-0.5">
+                        <School className="w-2.5 h-2.5" /> GURU
+                      </span>
                     ) : (
-                      <UserIcon className="w-4 h-4 text-blue-200" />
-                    )}
-                    <span className="max-w-[100px] truncate font-medium">
-                      {user.displayName || user.email?.split('@')[0]}
-                    </span>
-                    {isAdmin && (
-                      <span
-                        title="Admin Verified"
-                        className="bg-amber-400 text-slate-950 text-[10px] font-extrabold px-1 rounded"
-                      >
-                        ADMIN
+                      <span className="text-emerald-300 font-extrabold flex items-center gap-0.5">
+                        <GraduationCap className="w-2.5 h-2.5" /> SISWA
                       </span>
                     )}
-                  </div>
-                  <button
-                    onClick={handleLogout}
-                    title="Keluar"
-                    className="p-1.5 rounded-lg text-blue-200 hover:text-rose-300 hover:bg-white/10 transition"
-                  >
-                    <LogOut className="w-4 h-4" />
-                  </button>
+                  </span>
                 </div>
-              ) : (
+              </div>
+
+              {/* Logout button */}
+              <button
+                onClick={handleLogout}
+                title="Keluar dari Akun"
+                className="p-2 rounded-xl text-blue-200 hover:text-rose-300 hover:bg-white/10 transition flex items-center gap-1 text-xs"
+              >
+                <LogOut className="w-4 h-4" />
+                <span className="hidden xl:inline">Keluar</span>
+              </button>
+
+              {/* Reset button only for teachers */}
+              {isTeacher && (
                 <button
-                  onClick={handleLogin}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold transition border border-white/20"
+                  onClick={handleResetData}
+                  title="Reset data ke bawaan COBA.html"
+                  className="p-2 rounded-xl text-blue-200 hover:text-white hover:bg-white/10 transition"
                 >
-                  <LogIn className="w-3.5 h-3.5 text-amber-300" />
-                  <span>Masuk Google</span>
+                  <RotateCcw className="w-4 h-4" />
                 </button>
               )}
-
-              {/* Quick reset button */}
-              <button
-                onClick={handleResetData}
-                title="Reset data ke bawaan COBA.html"
-                className="p-2 rounded-xl text-blue-200 hover:text-white hover:bg-white/10 transition"
-              >
-                <RotateCcw className="w-4 h-4" />
-              </button>
             </div>
           </nav>
 
@@ -198,79 +195,85 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate }) => {
 
       {/* Mobile Drawer */}
       {mobileMenuOpen && (
-        <div className="md:hidden bg-[#162e58] border-t border-white/10 px-4 py-3 space-y-1">
-          {user ? (
-            <div className="flex items-center justify-between p-2 mb-2 bg-white/10 rounded-xl text-xs">
-              <div className="flex items-center gap-2">
-                {user.photoURL && (
-                  <img
-                    src={user.photoURL}
-                    alt="User"
-                    className="w-6 h-6 rounded-full"
-                    referrerPolicy="no-referrer"
-                  />
-                )}
-                <div>
-                  <div className="font-bold">{user.displayName || user.email}</div>
-                  {isAdmin && <span className="text-amber-300 font-bold">Admin</span>}
+        <div className="md:hidden bg-[#162e58] border-t border-white/10 px-4 py-3 space-y-2">
+          {/* User info */}
+          <div className="flex items-center justify-between p-2.5 bg-white/10 rounded-xl text-xs">
+            <div className="flex items-center gap-2">
+              {user?.photoURL ? (
+                <img
+                  src={user.photoURL}
+                  alt="User"
+                  className="w-7 h-7 rounded-full"
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <div className="w-7 h-7 rounded-full bg-blue-400/30 flex items-center justify-center">
+                  <UserIcon className="w-4 h-4 text-blue-200" />
+                </div>
+              )}
+              <div>
+                <div className="font-bold text-white text-xs">{displayName}</div>
+                <div className="text-[11px]">
+                  {isTeacher ? (
+                    <span className="text-amber-300 font-bold">Guru / Pembuat Soal</span>
+                  ) : (
+                    <span className="text-emerald-300 font-bold">Siswa / Peserta Kuis</span>
+                  )}
                 </div>
               </div>
-              <button
-                onClick={handleLogout}
-                className="text-rose-300 hover:underline text-xs flex items-center gap-1"
-              >
-                <LogOut className="w-3.5 h-3.5" />
-                Keluar
-              </button>
             </div>
-          ) : (
             <button
-              onClick={handleLogin}
-              className="w-full flex items-center justify-center gap-2 p-2.5 mb-2 rounded-xl bg-amber-400 text-slate-950 font-bold text-xs"
+              onClick={handleLogout}
+              className="px-2.5 py-1 rounded-lg bg-rose-500/20 text-rose-300 hover:bg-rose-500/30 text-xs flex items-center gap-1 font-semibold"
             >
-              <LogIn className="w-4 h-4" />
-              Masuk dengan Google
-            </button>
-          )}
-
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = currentView === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => {
-                  onNavigate(item.id);
-                  setMobileMenuOpen(false);
-                }}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition ${
-                  isActive
-                    ? 'bg-white text-[#1e3c72]'
-                    : 'text-blue-100 hover:bg-white/10'
-                }`}
-              >
-                <Icon className="w-5 h-5" />
-                <span>{item.label}</span>
-              </button>
-            );
-          })}
-
-          <div className="pt-2 border-t border-white/10 mt-2 flex justify-between items-center text-xs text-blue-200">
-            <span className="flex items-center gap-1 text-emerald-300">
-              <Cloud className="w-3.5 h-3.5" />
-              Cloud: Firestore Aktif
-            </span>
-            <button
-              onClick={() => {
-                handleResetData();
-                setMobileMenuOpen(false);
-              }}
-              className="text-amber-300 hover:underline flex items-center gap-1"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              Reset Bawaan
+              <LogOut className="w-3.5 h-3.5" />
+              Keluar
             </button>
           </div>
+
+          {/* Navigation Links */}
+          <div className="space-y-1">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = currentView === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => {
+                    onNavigate(item.id);
+                    setMobileMenuOpen(false);
+                  }}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition ${
+                    isActive
+                      ? 'bg-white text-[#1e3c72]'
+                      : 'text-blue-100 hover:bg-white/10'
+                  }`}
+                >
+                  <Icon className="w-5 h-5" />
+                  <span>{item.label}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {isTeacher && (
+            <div className="pt-2 border-t border-white/10 mt-2 flex justify-between items-center text-xs text-blue-200">
+              <span className="flex items-center gap-1 text-emerald-300">
+                <Cloud className="w-3.5 h-3.5" />
+                Firestore Aktif
+              </span>
+              <button
+                onClick={() => {
+                  handleResetData();
+                  setMobileMenuOpen(false);
+                }}
+                className="text-amber-300 hover:underline flex items-center gap-1"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                Reset Bawaan
+              </button>
+            </div>
+          )}
         </div>
       )}
     </header>

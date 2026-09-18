@@ -7,7 +7,7 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // Helper functions
+    // Authentication and RBAC helper functions
     function isSignedIn() {
       return request.auth != null;
     }
@@ -24,11 +24,20 @@ service cloud.firestore {
       return resource.data;
     }
 
-    function isAdmin() {
+    function isTeacher() {
       return isSignedIn() && (
-        (request.auth.token.email == 'khafidmaulana1306@gmail.com' && request.auth.token.email_verified == true) ||
-        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+        request.auth.token.email == 'khafidmaulana1306@gmail.com' ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher')
       );
+    }
+
+    // User profile validation
+    function isValidUserProfile(data) {
+      return data.uid is string && data.uid.size() > 0 && data.uid.size() <= 128
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 128
+        && data.email is string && data.email.size() > 0 && data.email.size() <= 255
+        && data.role in ['teacher', 'student'];
     }
 
     // Passage validation
@@ -45,7 +54,7 @@ service cloud.firestore {
         && data.options is map
         && data.correctAnswer in ['A', 'B', 'C', 'D', 'E']
         && data.category is string && data.category.size() <= 100
-        && data.difficulty in ['Mudah', 'Sedang', 'Sulit']
+        && data.difficulty in ['mudah', 'sedang', 'sulit', 'Mudah', 'Sedang', 'Sulit']
         && data.status in ['published', 'draft'];
     }
 
@@ -59,37 +68,41 @@ service cloud.firestore {
         && data.percentage is number && data.percentage >= 0 && data.percentage <= 100;
     }
 
-    // Passages collection
+    // Users collection (RBAC)
+    match /users/{userId} {
+      allow get: if isSignedIn() && (request.auth.uid == userId || isTeacher());
+      allow list: if isTeacher();
+      allow create: if isSignedIn() && request.auth.uid == userId && isValidUserProfile(incoming());
+      allow update: if isSignedIn() && (request.auth.uid == userId || isTeacher()) && isValidUserProfile(incoming());
+      allow delete: if isTeacher();
+    }
+
+    // Passages collection (Teacher writes, authenticated users read)
     match /passages/{passageId} {
-      allow get: if isValidId(passageId);
-      allow list: if true;
-      allow create: if isValidId(passageId) && isValidPassage(incoming());
-      allow update: if isValidId(passageId) && isValidPassage(incoming());
-      allow delete: if isValidId(passageId);
+      allow get, list: if isSignedIn();
+      allow create: if isTeacher() && isValidId(passageId) && isValidPassage(incoming());
+      allow update: if isTeacher() && isValidId(passageId) && isValidPassage(incoming());
+      allow delete: if isTeacher() && isValidId(passageId);
     }
 
-    // Questions collection
+    // Questions collection (Teacher writes, authenticated users read)
     match /questions/{questionId} {
-      allow get: if isValidId(questionId);
-      allow list: if true;
-      allow create: if isValidId(questionId) && isValidQuestion(incoming());
-      allow update: if isValidId(questionId) && isValidQuestion(incoming());
-      allow delete: if isValidId(questionId);
+      allow get, list: if isSignedIn();
+      allow create: if isTeacher() && isValidId(questionId) && isValidQuestion(incoming());
+      allow update: if isTeacher() && isValidId(questionId) && isValidQuestion(incoming());
+      allow delete: if isTeacher() && isValidId(questionId);
     }
 
-    // Quiz Results collection
+    // Quiz Results collection (Students can submit and view their own, Teachers view/manage all)
     match /quiz_results/{resultId} {
-      allow get: if isValidId(resultId);
-      allow list: if true;
-      allow create: if isValidId(resultId) && isValidQuizResult(incoming());
-      allow update: if isValidId(resultId) && isValidQuizResult(incoming());
-      allow delete: if isValidId(resultId);
-    }
-
-    // Admin collection
-    match /admins/{adminId} {
-      allow read: if isSignedIn();
-      allow write: if isAdmin();
+      allow get: if isSignedIn() && (
+        resource.data.studentUid == request.auth.uid ||
+        isTeacher()
+      );
+      allow list: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(resultId) && isValidQuizResult(incoming());
+      allow update: if isTeacher() && isValidId(resultId) && isValidQuizResult(incoming());
+      allow delete: if isTeacher() && isValidId(resultId);
     }
   }
 }

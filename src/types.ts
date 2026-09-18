@@ -29,6 +29,16 @@ export interface Passage {
   updatedAt: string;
 }
 
+export type UserRole = 'teacher' | 'student';
+
+export interface UserProfile {
+  uid: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  createdAt: string;
+}
+
 export interface QuizAnswerRecord {
   questionId: string;
   selectedAnswer: 'A' | 'B' | 'C' | 'D' | 'E';
@@ -39,6 +49,8 @@ export interface QuizAnswerRecord {
 export interface QuizResult {
   id: string;
   date: string;
+  studentUid?: string;
+  studentEmail?: string;
   studentName: string;
   passageId?: string;
   passageTitle?: string;

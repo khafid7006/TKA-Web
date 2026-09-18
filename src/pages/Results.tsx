@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Award,
   Calendar,
@@ -12,11 +12,14 @@ import {
   BookOpen,
   X,
   TrendingUp,
+  School,
+  GraduationCap,
 } from 'lucide-react';
 import { QuizResult, ViewMode } from '../types';
 import { storageService, STORAGE_EVENT_KEY } from '../services/storageService';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { useToast } from '../components/Toast';
+import { useFirebase } from '../context/FirebaseContext';
 
 interface ResultsProps {
   onNavigate?: (view: ViewMode) => void;
@@ -24,13 +27,15 @@ interface ResultsProps {
 
 export const Results: React.FC<ResultsProps> = ({ onNavigate }) => {
   const { showToast } = useToast();
-  const [results, setResults] = useState<QuizResult[]>([]);
+  const { user, userProfile, isTeacher, isStudent } = useFirebase();
+
+  const [allResults, setAllResults] = useState<QuizResult[]>([]);
   const [viewingResult, setViewingResult] = useState<QuizResult | null>(null);
   const [deletingResult, setDeletingResult] = useState<QuizResult | null>(null);
   const [isClearingAll, setIsClearingAll] = useState(false);
 
   const loadData = () => {
-    setResults(storageService.getQuizResults());
+    setAllResults(storageService.getQuizResults());
   };
 
   useEffect(() => {
@@ -40,27 +45,42 @@ export const Results: React.FC<ResultsProps> = ({ onNavigate }) => {
     return () => window.removeEventListener(STORAGE_EVENT_KEY, handleStorageChange);
   }, []);
 
+  // Filter results: Students only see their own results; Teachers see all
+  const filteredResults = useMemo(() => {
+    if (isTeacher) {
+      return allResults;
+    }
+    // Student filter
+    return allResults.filter((r) => {
+      if (user?.uid && r.studentUid === user.uid) return true;
+      if (user?.email && r.studentEmail && r.studentEmail.toLowerCase() === user.email.toLowerCase()) return true;
+      if (userProfile?.name && r.studentName.toLowerCase() === userProfile.name.toLowerCase()) return true;
+      return false;
+    });
+  }, [allResults, isTeacher, user, userProfile]);
+
   const handleDeleteOne = () => {
-    if (!deletingResult) return;
+    if (!isTeacher || !deletingResult) return;
     storageService.deleteQuizResult(deletingResult.id);
     showToast('Catatan hasil kuis berhasil dihapus', 'success');
     setDeletingResult(null);
   };
 
   const handleClearAll = () => {
+    if (!isTeacher) return;
     storageService.clearQuizResults();
     showToast('Seluruh riwayat hasil kuis berhasil dibersihkan', 'info');
     setIsClearingAll(false);
   };
 
   // Average calculations
-  const totalAttempts = results.length;
+  const totalAttempts = filteredResults.length;
   const averageScore =
     totalAttempts > 0
-      ? Math.round(results.reduce((acc, r) => acc + r.percentage, 0) / totalAttempts)
+      ? Math.round(filteredResults.reduce((acc, r) => acc + r.percentage, 0) / totalAttempts)
       : 0;
   const highestScore =
-    totalAttempts > 0 ? Math.max(...results.map((r) => r.percentage)) : 0;
+    totalAttempts > 0 ? Math.max(...filteredResults.map((r) => r.percentage)) : 0;
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
@@ -69,14 +89,17 @@ export const Results: React.FC<ResultsProps> = ({ onNavigate }) => {
         <div>
           <h2 className="text-2xl font-extrabold text-slate-800 tracking-tight flex items-center gap-2.5">
             <Award className="w-7 h-7 text-amber-500" />
-            Riwayat Hasil & Evaluasi Quiz
+            <span>{isTeacher ? 'Rekapitulasi Hasil Quiz Siswa' : 'Riwayat Nilai Saya'}</span>
           </h2>
           <p className="text-sm text-slate-500 mt-1">
-            Rekapitulasi pengerjaan siswa, skor pemahaman teks, dan evaluasi jawaban
+            {isTeacher
+              ? 'Daftar pengerjaan kuis siswa, skor pemahaman teks wacana, dan analisis jawaban'
+              : 'Daftar capaian nilai latihan kuis dan evaluasi butir soal yang telah Anda selesaikan'}
           </p>
         </div>
 
-        {results.length > 0 && (
+        {/* Clear All button is strictly restricted to Teachers */}
+        {isTeacher && filteredResults.length > 0 && (
           <button
             onClick={() => setIsClearingAll(true)}
             className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 transition self-start sm:self-auto"
@@ -88,7 +111,7 @@ export const Results: React.FC<ResultsProps> = ({ onNavigate }) => {
       </div>
 
       {/* Overview Analytics Bar */}
-      {results.length > 0 && (
+      {filteredResults.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-2xs flex items-center gap-4">
             <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
@@ -124,21 +147,27 @@ export const Results: React.FC<ResultsProps> = ({ onNavigate }) => {
 
       {/* Table / List */}
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
-        {results.length === 0 ? (
+        {filteredResults.length === 0 ? (
           <div className="text-center py-16 px-4">
             <div className="w-16 h-16 rounded-full bg-amber-50 text-amber-500 flex items-center justify-center mx-auto mb-3">
               <FileQuestion className="w-8 h-8" />
             </div>
-            <h3 className="text-base font-bold text-slate-800">Belum ada riwayat kuis tersimpan</h3>
+            <h3 className="text-base font-bold text-slate-800">
+              {isTeacher
+                ? 'Belum ada siswa yang menyelesaikan kuis'
+                : 'Belum ada riwayat kuis tersimpan untuk akun Anda'}
+            </h3>
             <p className="text-sm text-slate-500 mt-1 max-w-sm mx-auto">
-              Selesaikan kuis interaktif di halaman "Kuis Siswa" dan klik "Simpan Hasil" untuk mencatat skor ke riwayat.
+              {isTeacher
+                ? 'Hasil kuis siswa akan otomatis masuk dan ditampilkan di sini setelah dikumpulkan.'
+                : 'Selesaikan kuis interaktif di halaman "Mulai Quiz" untuk mencatat skor ke riwayat nilai Anda.'}
             </p>
             {onNavigate && (
               <button
                 onClick={() => onNavigate('quiz')}
                 className="mt-4 px-5 py-2.5 text-xs font-bold text-slate-950 bg-amber-400 hover:bg-amber-300 rounded-xl transition shadow-md inline-flex items-center gap-2"
               >
-                <span>Mulai Kerjakan Kuis Sekarang</span>
+                <span>Mulai Kerjakan Kuis</span>
               </button>
             )}
           </div>
@@ -147,19 +176,19 @@ export const Results: React.FC<ResultsProps> = ({ onNavigate }) => {
             <table className="w-full text-left text-sm text-slate-700">
               <thead className="bg-slate-50/80 text-xs text-slate-500 uppercase font-bold border-b border-slate-200">
                 <tr>
-                  <th className="px-4 py-3.5">ID & Waktu</th>
-                  <th className="px-4 py-3.5">Nama Siswa</th>
+                  <th className="px-4 py-3.5">Waktu</th>
+                  {isTeacher && <th className="px-4 py-3.5">Nama Siswa</th>}
                   <th className="px-4 py-3.5">Wacana Referensi</th>
                   <th className="px-4 py-3.5 text-center">Total Soal</th>
                   <th className="px-4 py-3.5 text-center">Benar / Salah</th>
                   <th className="px-4 py-3.5 text-center">Nilai (%)</th>
-                  <th className="px-4 py-3.5 text-right w-28">Aksi</th>
+                  <th className="px-4 py-3.5 text-right w-24">Rincian</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {results.map((r) => (
+                {filteredResults.map((r) => (
                   <tr key={r.id} className="hover:bg-slate-50/50 transition">
-                    {/* ID & Date */}
+                    {/* Date */}
                     <td className="px-4 py-4 whitespace-nowrap">
                       <div className="font-mono text-xs font-bold text-slate-700">{r.id}</div>
                       <div className="text-xs text-slate-400 flex items-center gap-1 mt-0.5">
@@ -171,15 +200,22 @@ export const Results: React.FC<ResultsProps> = ({ onNavigate }) => {
                       </div>
                     </td>
 
-                    {/* Student Name */}
-                    <td className="px-4 py-4 font-semibold text-slate-900">
-                      <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center font-bold text-xs">
-                          {r.studentName ? r.studentName.charAt(0).toUpperCase() : 'S'}
+                    {/* Student Name (shown to teachers) */}
+                    {isTeacher && (
+                      <td className="px-4 py-4 font-semibold text-slate-900">
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center font-bold text-xs">
+                            {r.studentName ? r.studentName.charAt(0).toUpperCase() : 'S'}
+                          </div>
+                          <div>
+                            <div>{r.studentName}</div>
+                            {r.studentEmail && (
+                              <div className="text-[11px] text-slate-400 font-normal">{r.studentEmail}</div>
+                            )}
+                          </div>
                         </div>
-                        <span>{r.studentName}</span>
-                      </div>
-                    </td>
+                      </td>
+                    )}
 
                     {/* Passage Title */}
                     <td className="px-4 py-4 max-w-xs truncate text-xs text-slate-600">
@@ -224,17 +260,20 @@ export const Results: React.FC<ResultsProps> = ({ onNavigate }) => {
                         <button
                           onClick={() => setViewingResult(r)}
                           title="Lihat Rincian Jawaban"
-                          className="p-1.5 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition"
+                          className="px-2.5 py-1 rounded-lg text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 transition flex items-center gap-1"
                         >
-                          <Eye className="w-4 h-4" />
+                          <Eye className="w-3.5 h-3.5" />
+                          <span>Rincian</span>
                         </button>
-                        <button
-                          onClick={() => setDeletingResult(r)}
-                          title="Hapus Rekaman Ini"
-                          className="p-1.5 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        {isTeacher && (
+                          <button
+                            onClick={() => setDeletingResult(r)}
+                            title="Hapus Rekaman"
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

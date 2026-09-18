@@ -5,11 +5,15 @@ import {
   GoogleAuthProvider,
   signOut as firebaseSignOut,
   onAuthStateChanged,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  updateProfile,
   User,
 } from 'firebase/auth';
 import {
   getFirestore,
   doc,
+  getDoc,
   getDocFromServer,
   collection,
   setDoc,
@@ -18,7 +22,7 @@ import {
   getDocs,
 } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
-import { Passage, Question, QuizResult } from '../types';
+import { Passage, Question, QuizResult, UserProfile, UserRole } from '../types';
 
 // Initialize Firebase App
 const app = initializeApp(firebaseConfig);
@@ -29,11 +33,47 @@ export const auth = getAuth(app);
 
 // Authentication helper
 export const googleProvider = new GoogleAuthProvider();
+
 export const signInWithGoogle = async () => {
   try {
     return await signInWithPopup(auth, googleProvider);
   } catch (error) {
     console.error('Error signing in with Google:', error);
+    throw error;
+  }
+};
+
+export const signInWithEmail = async (email: string, pass: string) => {
+  try {
+    return await signInWithEmailAndPassword(auth, email, pass);
+  } catch (error) {
+    console.error('Error signing in with email:', error);
+    throw error;
+  }
+};
+
+export const registerWithEmail = async (
+  name: string,
+  email: string,
+  pass: string,
+  role: UserRole
+) => {
+  try {
+    const cred = await createUserWithEmailAndPassword(auth, email, pass);
+    if (cred.user) {
+      await updateProfile(cred.user, { displayName: name });
+      const profile: UserProfile = {
+        uid: cred.user.uid,
+        name: name.trim(),
+        email: email.trim().toLowerCase(),
+        role,
+        createdAt: new Date().toISOString(),
+      };
+      await firestoreService.saveUserProfile(profile);
+    }
+    return cred;
+  } catch (error) {
+    console.error('Error registering with email:', error);
     throw error;
   }
 };
@@ -118,10 +158,33 @@ export const COLLECTIONS = {
   PASSAGES: 'passages',
   QUESTIONS: 'questions',
   RESULTS: 'quiz_results',
+  USERS: 'users',
 };
 
 // Cloud write helpers with proper error handling
 export const firestoreService = {
+  async getUserProfile(uid: string): Promise<UserProfile | null> {
+    const path = `${COLLECTIONS.USERS}/${uid}`;
+    try {
+      const snap = await getDoc(doc(db, COLLECTIONS.USERS, uid));
+      if (snap.exists()) {
+        return snap.data() as UserProfile;
+      }
+      return null;
+    } catch (err) {
+      handleFirestoreError(err, OperationType.GET, path);
+    }
+  },
+
+  async saveUserProfile(profile: UserProfile): Promise<void> {
+    const path = `${COLLECTIONS.USERS}/${profile.uid}`;
+    try {
+      await setDoc(doc(db, COLLECTIONS.USERS, profile.uid), profile);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, path);
+    }
+  },
+
   async savePassage(passage: Passage): Promise<void> {
     const path = `${COLLECTIONS.PASSAGES}/${passage.id}`;
     try {
