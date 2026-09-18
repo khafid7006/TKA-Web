@@ -1,12 +1,12 @@
 {
-  "projectId": "proven-bee-vdpgw",
-  "appId": "1:948817813363:web:9f8a75b5bb9c1be0d8ef06",
-  "apiKey": "AIzaSyAOsC7lIYa5wa2VxOYM51-w4ygx1clPifA",
-  "authDomain": "proven-bee-vdpgw.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-soaltkasmabahasa-7e93aaff-5869-4a1e-971e-029695f30013",
-  "storageBucket": "proven-bee-vdpgw.firebasestorage.app",
-  "messagingSenderId": "948817813363",
-  "measurementId": "",
-  "oAuthClientId": "948817813363-afq037p5i7p07c1ae36atf75abmle68k.apps.googleusercontent.com",
+  "projectId": "tka-5a95c",
+  "appId": "1:243179207746:web:f07424d47df55861a4c1db",
+  "apiKey": "AIzaSyCfqJG30dYPcyZqPZjODVRIAELlZpJ5A-I",
+  "authDomain": "tka-5a95c.firebaseapp.com",
+  "firestoreDatabaseId": "(default)",
+  "storageBucket": "tka-5a95c.firebasestorage.app",
+  "messagingSenderId": "243179207746",
+  "measurementId": "G-WW8QZY5G6M",
+  "oAuthClientId": "",
   "recaptchaSiteKey": ""
 }

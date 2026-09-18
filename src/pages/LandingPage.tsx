@@ -166,17 +166,49 @@ export const LandingPage: React.FC = () => {
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-600" />
               <div className="space-y-1.5 flex-1">
                 <p className="font-semibold leading-relaxed">{errorMessage}</p>
+
+                {/* Guide for Authorized Domains */}
                 {errorMessage.includes('Authorized Domains') && (
-                  <div className="mt-2 p-2.5 bg-white/90 border border-rose-200/80 rounded-xl text-[11px] text-slate-700 leading-relaxed shadow-sm">
+                  <div className="mt-2 p-2.5 bg-white/95 border border-rose-200/80 rounded-xl text-[11px] text-slate-700 leading-relaxed shadow-sm">
                     <span className="font-bold text-rose-700 block mb-1">
-                      Langkah Cepat Firebase Console:
+                      Panduan Authorized Domains (Project: tka-5a95c):
                     </span>
                     <ol className="list-decimal list-inside space-y-0.5 text-slate-600">
-                      <li>Buka project <strong>proven-bee-vdpgw</strong> di Firebase Console.</li>
-                      <li>Buka menu <strong>Build &rarr; Authentication</strong>.</li>
+                      <li>Buka project <strong>tka-5a95c</strong> di Firebase Console.</li>
+                      <li>Masuk ke menu <strong>Build &rarr; Authentication</strong>.</li>
                       <li>Pilih tab <strong>Settings</strong> &rarr; klik <strong>Authorized domains</strong>.</li>
                       <li>Klik tombol <strong>Add domain</strong>.</li>
-                      <li>Ketik <code>tka-web-three.vercel.app</code> dan simpan.</li>
+                      <li>Ketik <code>tka-web-three.vercel.app</code> lalu klik <strong>Save</strong>.</li>
+                    </ol>
+                  </div>
+                )}
+
+                {/* Guide for Disabled Providers */}
+                {errorMessage.includes('Provider login') && (
+                  <div className="mt-2 p-2.5 bg-white/95 border border-amber-200/80 rounded-xl text-[11px] text-slate-700 leading-relaxed shadow-sm">
+                    <span className="font-bold text-amber-800 block mb-1">
+                      Panduan Mengaktifkan Provider (Project: tka-5a95c):
+                    </span>
+                    <ol className="list-decimal list-inside space-y-0.5 text-slate-600">
+                      <li>Buka project <strong>tka-5a95c</strong> di Firebase Console.</li>
+                      <li>Masuk ke menu <strong>Build &rarr; Authentication</strong>.</li>
+                      <li>Pilih tab <strong>Sign-in method</strong>.</li>
+                      <li>Aktifkan penyedia <strong>Email/Password</strong> dan <strong>Google</strong>.</li>
+                      <li>Simpan perubahan lalu coba masuk kembali.</li>
+                    </ol>
+                  </div>
+                )}
+
+                {/* Guide for API Key Setup */}
+                {errorMessage.includes('API Key') && (
+                  <div className="mt-2 p-2.5 bg-white/95 border border-blue-200/80 rounded-xl text-[11px] text-slate-700 leading-relaxed shadow-sm">
+                    <span className="font-bold text-blue-800 block mb-1">
+                      Pengisian Kredensial Web App Firebase (Project: tka-5a95c):
+                    </span>
+                    <ol className="list-decimal list-inside space-y-0.5 text-slate-600">
+                      <li>Buka project <strong>tka-5a95c</strong> di Firebase Console &rarr; <strong>Project settings</strong>.</li>
+                      <li>Pada bagian <em>Your apps</em>, salin <code>apiKey</code>, <code>appId</code>, dan <code>messagingSenderId</code>.</li>
+                      <li>Tempel nilai tersebut ke dalam file <code>firebase-applet-config.json</code> atau environment variable Vercel.</li>
                     </ol>
                   </div>
                 )}

@@ -24,18 +24,38 @@ import {
 import firebaseConfig from '../../firebase-applet-config.json';
 import { Passage, Question, QuizResult, UserProfile, UserRole } from '../types';
 
+// Resolve configuration: supports environment variables (for Vercel) or firebase-applet-config.json
+export const firebaseAppConfig = {
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || firebaseConfig.projectId || 'tka-5a95c',
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || firebaseConfig.apiKey || '',
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || firebaseConfig.authDomain || 'tka-5a95c.firebaseapp.com',
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || firebaseConfig.storageBucket || 'tka-5a95c.firebasestorage.app',
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || firebaseConfig.messagingSenderId || '',
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || firebaseConfig.appId || '',
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || firebaseConfig.measurementId || '',
+  firestoreDatabaseId: import.meta.env.VITE_FIREBASE_DATABASE_ID || firebaseConfig.firestoreDatabaseId || '(default)',
+};
+
 // Initialize Firebase App
-const app = initializeApp(firebaseConfig);
+const app = initializeApp({
+  projectId: firebaseAppConfig.projectId,
+  apiKey: firebaseAppConfig.apiKey,
+  authDomain: firebaseAppConfig.authDomain,
+  storageBucket: firebaseAppConfig.storageBucket,
+  messagingSenderId: firebaseAppConfig.messagingSenderId,
+  appId: firebaseAppConfig.appId,
+  measurementId: firebaseAppConfig.measurementId || undefined,
+});
 
 // CRITICAL: Initialize Firestore with configured firestoreDatabaseId and forced HTTP long-polling
 // to prevent WebChannel / WebSocket transport failures in iframe and container sandbox environments.
-export const db = initializeFirestore(
-  app,
-  {
-    experimentalForceLongPolling: true,
-  },
-  firebaseConfig.firestoreDatabaseId
-);
+const rawDbId = firebaseAppConfig.firestoreDatabaseId;
+const targetDbId = (!rawDbId || rawDbId === '(default)' || rawDbId === 'default') ? undefined : rawDbId;
+
+export const db = targetDbId
+  ? initializeFirestore(app, { experimentalForceLongPolling: true }, targetDbId)
+  : initializeFirestore(app, { experimentalForceLongPolling: true });
+
 export const auth = getAuth(app);
 
 // Authentication helper
@@ -50,7 +70,26 @@ export const formatAuthErrorMessage = (error: unknown): string => {
     errStr.includes('auth/unauthorized-domain') ||
     errStr.includes('unauthorized-domain')
   ) {
-    return 'Domain aplikasi belum terdaftar di Firebase Authorized Domains. Harap daftarkan tka-web-three.vercel.app di Firebase Console.';
+    return 'Domain belum diizinkan di Firebase Authentication Authorized Domains.';
+  }
+
+  if (
+    errCode === 'auth/operation-not-allowed' ||
+    errStr.includes('auth/operation-not-allowed') ||
+    errStr.includes('operation-not-allowed')
+  ) {
+    return 'Provider login (Google / Email) belum diaktifkan di Firebase Console.';
+  }
+
+  if (
+    errCode === 'auth/invalid-api-key' ||
+    errCode === 'auth/api-key-not-valid' ||
+    errStr.includes('API key not valid') ||
+    errStr.includes('invalid-api-key') ||
+    firebaseAppConfig.apiKey === 'AIzaSy_YOUR_API_KEY_HERE' ||
+    !firebaseAppConfig.apiKey
+  ) {
+    return 'Kredensial API Key Firebase belum dikonfigurasi. Harap masukkan apiKey valid di firebase-applet-config.json dari Firebase Console project tka-5a95c.';
   }
 
   if (
@@ -219,11 +258,19 @@ export function handleFirestoreError(
 // Connection check on boot
 export async function testConnection(): Promise<boolean> {
   try {
+    if (!firebaseAppConfig.apiKey || firebaseAppConfig.apiKey === 'AIzaSy_YOUR_API_KEY_HERE') {
+      console.warn('Firebase connection: Menunggu pengisian API Key valid untuk project tka-5a95c.');
+      return false;
+    }
     await getDocFromServer(doc(db, 'test', 'connection'));
     return true;
   } catch (error) {
-    if (error instanceof Error && (error.message.includes('the client is offline') || error.message.includes('unavailable') || error.message.includes('code=unavailable'))) {
-      console.warn('Firebase connection: operating in offline-resilient mode.');
+    if (error instanceof Error) {
+      if (error.message.includes('the client is offline') || error.message.includes('unavailable') || error.message.includes('code=unavailable')) {
+        console.warn('Firebase connection: operating in offline-resilient mode.');
+      } else {
+        console.warn('Firebase connection notice:', error.message);
+      }
     }
     return false;
   }
