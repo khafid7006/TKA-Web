@@ -63,28 +63,28 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate }) => {
   const displayName = userProfile?.name || user?.displayName || user?.email?.split('@')[0] || 'Pengguna';
 
   return (
-    <header className="bg-gradient-to-r from-[#1e3c72] via-[#244685] to-[#2a5298] text-white shadow-lg sticky top-0 z-40">
+    <header className="bg-gradient-to-r from-[#1e3c72] via-[#244685] to-[#2a5298] text-white shadow-md sticky top-0 z-40 backdrop-blur-md">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-18">
-          {/* Logo & Brand */}
+        <div className="flex items-center justify-between h-20 gap-4">
+          {/* Logo & Brand (Kiri) */}
           <div
             onClick={() => onNavigate(isTeacher ? 'dashboard' : 'quiz')}
-            className="flex items-center gap-3 cursor-pointer group select-none"
+            className="flex items-center gap-3.5 cursor-pointer group select-none shrink-0"
           >
-            <div className="w-10 h-10 rounded-xl bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20 group-hover:scale-105 transition-transform shadow-inner">
+            <div className="w-11 h-11 rounded-xl bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20 group-hover:scale-105 group-hover:bg-white/15 transition-all shadow-inner">
               <GraduationCap className="w-6 h-6 text-amber-300" />
             </div>
             <div>
-              <h1 className="text-base sm:text-lg font-bold tracking-tight text-white flex items-center gap-2">
-                TKA BAHASA INDONESIA
-                <span className="text-xs bg-amber-400/90 text-slate-950 font-extrabold px-1.5 py-0.5 rounded-sm">
+              <h1 className="text-base sm:text-lg font-black tracking-tight text-white flex items-center gap-2">
+                <span>TKA BAHASA INDONESIA</span>
+                <span className="text-[11px] bg-amber-400 text-slate-950 font-black px-1.5 py-0.5 rounded-md shadow-xs">
                   2026
                 </span>
               </h1>
-              <div className="flex items-center gap-2 text-xs text-blue-200 hidden sm:flex">
+              <div className="flex items-center gap-2 text-xs text-blue-200/90 hidden sm:flex mt-0.5">
                 <span>{isTeacher ? 'Portal Guru & Pembuat Soal' : 'Simulasi Ujian Siswa'}</span>
-                <span>•</span>
-                <span className="inline-flex items-center gap-1 text-[11px] text-emerald-300">
+                <span className="text-blue-300/60">•</span>
+                <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-300 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-400/20">
                   <Cloud className="w-3 h-3 text-emerald-400" />
                   <span>Cloud Sync</span>
                 </span>
@@ -92,7 +92,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate }) => {
             </div>
           </div>
 
-          {/* Desktop Navigation Links */}
+          {/* Desktop Navigation Links (Tengah) */}
           <nav className="hidden md:flex items-center gap-1.5 lg:gap-2">
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -103,14 +103,14 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate }) => {
                 <button
                   key={item.id}
                   onClick={() => onNavigate(item.id)}
-                  className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs lg:text-sm font-semibold transition-all ${
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs lg:text-sm font-semibold transition-all duration-200 ${
                     isActive
                       ? isPrimary && isStudent
-                        ? 'bg-amber-400 text-slate-950 shadow-md scale-105'
-                        : 'bg-white text-[#1e3c72] shadow-md'
+                        ? 'bg-amber-400 text-slate-950 shadow-md font-bold ring-2 ring-amber-300/60'
+                        : 'bg-white text-[#1e3c72] shadow-sm font-bold border border-white/80'
                       : isPrimary && isStudent
                       ? 'bg-amber-400/20 text-amber-200 hover:bg-amber-400/30 border border-amber-300/40'
-                      : 'text-blue-100 hover:bg-white/10 hover:text-white'
+                      : 'text-blue-100/90 hover:bg-white/10 hover:text-white border border-transparent hover:border-white/10'
                   }`}
                 >
                   <Icon className="w-4 h-4 shrink-0" />
@@ -118,60 +118,69 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate }) => {
                 </button>
               );
             })}
+          </nav>
 
-            {/* User Profile & Role Info */}
-            <div className="ml-2 pl-2 border-l border-white/20 flex items-center gap-2">
-              <div className="flex items-center gap-2 bg-white/10 py-1 px-3 rounded-xl text-xs border border-white/15">
-                {user?.photoURL ? (
-                  <img
-                    src={user.photoURL}
-                    alt="Profile"
-                    className="w-5 h-5 rounded-full"
-                    referrerPolicy="no-referrer"
-                  />
-                ) : (
-                  <UserIcon className="w-4 h-4 text-blue-200" />
-                )}
-                <div className="flex flex-col text-left leading-tight">
-                  <span className="max-w-[120px] truncate font-bold text-white text-xs">
-                    {displayName}
-                  </span>
-                  <span className="text-[10px] text-blue-200 flex items-center gap-1">
-                    {isTeacher ? (
-                      <span className="text-amber-300 font-extrabold flex items-center gap-0.5">
-                        <School className="w-2.5 h-2.5" /> GURU
-                      </span>
-                    ) : (
-                      <span className="text-emerald-300 font-extrabold flex items-center gap-0.5">
-                        <GraduationCap className="w-2.5 h-2.5" /> SISWA
-                      </span>
-                    )}
-                  </span>
+          {/* User Profile & Aksi (Kanan) */}
+          <div className="hidden md:flex items-center gap-3">
+            {/* User Profile Card */}
+            <div className="flex items-center gap-2.5 bg-white/10 hover:bg-white/15 py-1.5 px-3.5 rounded-xl text-xs border border-white/15 transition backdrop-blur-sm shadow-inner">
+              {user?.photoURL ? (
+                <img
+                  src={user.photoURL}
+                  alt="Profile"
+                  className="w-7 h-7 rounded-lg ring-1 ring-white/30 object-cover"
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <div className="w-7 h-7 rounded-lg bg-blue-400/20 flex items-center justify-center text-blue-200 border border-white/20">
+                  <UserIcon className="w-4 h-4" />
                 </div>
+              )}
+              <div className="flex flex-col text-left leading-tight">
+                <span className="max-w-[130px] truncate font-bold text-white text-xs">
+                  {displayName}
+                </span>
+                <span className="mt-0.5">
+                  {isTeacher ? (
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-400/25 text-amber-300 font-extrabold text-[10px] tracking-wider border border-amber-300/30">
+                      <School className="w-2.5 h-2.5" /> GURU
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-400/25 text-emerald-300 font-extrabold text-[10px] tracking-wider border border-emerald-300/30">
+                      <GraduationCap className="w-2.5 h-2.5" /> SISWA
+                    </span>
+                  )}
+                </span>
               </div>
+            </div>
 
-              {/* Logout button */}
-              <button
-                onClick={handleLogout}
-                title="Keluar dari Akun"
-                className="p-2 rounded-xl text-blue-200 hover:text-rose-300 hover:bg-white/10 transition flex items-center gap-1 text-xs"
-              >
-                <LogOut className="w-4 h-4" />
-                <span className="hidden xl:inline">Keluar</span>
-              </button>
+            {/* Pemisah Vertikal Tipis */}
+            <div className="h-7 w-[1px] bg-white/20" aria-hidden="true" />
 
+            {/* Action buttons */}
+            <div className="flex items-center gap-1">
               {/* Reset button only for teachers */}
               {isTeacher && (
                 <button
                   onClick={handleResetData}
                   title="Reset data ke bawaan COBA.html"
-                  className="p-2 rounded-xl text-blue-200 hover:text-white hover:bg-white/10 transition"
+                  className="p-2.5 rounded-xl text-blue-200 hover:text-white hover:bg-white/10 transition border border-transparent hover:border-white/10"
                 >
                   <RotateCcw className="w-4 h-4" />
                 </button>
               )}
+
+              {/* Logout button */}
+              <button
+                onClick={handleLogout}
+                title="Keluar dari Akun"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-blue-200 hover:text-rose-200 hover:bg-rose-500/20 transition text-xs font-semibold border border-transparent hover:border-rose-400/30"
+              >
+                <LogOut className="w-4 h-4" />
+                <span className="hidden lg:inline">Keluar</span>
+              </button>
             </div>
-          </nav>
+          </div>
 
           {/* Mobile hamburger button */}
           <div className="flex md:hidden items-center gap-2">
