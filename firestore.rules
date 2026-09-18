@@ -68,6 +68,11 @@ service cloud.firestore {
         && data.percentage is number && data.percentage >= 0 && data.percentage <= 100;
     }
 
+    // Test connection health check endpoint
+    match /test/{docId} {
+      allow read: if true;
+    }
+
     // Users collection (RBAC)
     match /users/{userId} {
       allow get: if isSignedIn() && (request.auth.uid == userId || isTeacher());

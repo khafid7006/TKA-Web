@@ -11,7 +11,7 @@ import {
   User,
 } from 'firebase/auth';
 import {
-  getFirestore,
+  initializeFirestore,
   doc,
   getDoc,
   getDocFromServer,
@@ -27,8 +27,15 @@ import { Passage, Question, QuizResult, UserProfile, UserRole } from '../types';
 // Initialize Firebase App
 const app = initializeApp(firebaseConfig);
 
-// CRITICAL: Initialize Firestore with configured firestoreDatabaseId
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+// CRITICAL: Initialize Firestore with configured firestoreDatabaseId and forced HTTP long-polling
+// to prevent WebChannel / WebSocket transport failures in iframe and container sandbox environments.
+export const db = initializeFirestore(
+  app,
+  {
+    experimentalForceLongPolling: true,
+  },
+  firebaseConfig.firestoreDatabaseId
+);
 export const auth = getAuth(app);
 
 // Authentication helper
@@ -146,8 +153,8 @@ export async function testConnection(): Promise<boolean> {
     await getDocFromServer(doc(db, 'test', 'connection'));
     return true;
   } catch (error) {
-    if (error instanceof Error && error.message.includes('the client is offline')) {
-      console.warn('Firebase connection: client is currently offline.');
+    if (error instanceof Error && (error.message.includes('the client is offline') || error.message.includes('unavailable') || error.message.includes('code=unavailable'))) {
+      console.warn('Firebase connection: operating in offline-resilient mode.');
     }
     return false;
   }
