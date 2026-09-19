@@ -362,12 +362,22 @@ export const Results: React.FC<ResultsProps> = ({ onNavigate }) => {
                           {ans.isCorrect ? 'BENAR' : 'SALAH'}
                         </span>
                       </div>
-                      <div className="mt-2 flex items-center gap-4 text-xs font-medium">
+                      <div className="mt-2 flex flex-wrap items-center gap-4 text-xs font-medium">
                         <span>
-                          Jawaban Dipilih: <strong>Opsi {ans.selectedAnswer}</strong>
+                          Jawaban Dipilih:{' '}
+                          <strong>
+                            {ans.type === 'pg' || (!ans.type && typeof ans.selectedAnswer === 'string' && ans.selectedAnswer.length === 1)
+                              ? `Opsi ${ans.selectedAnswer}`
+                              : String(ans.selectedAnswer)}
+                          </strong>
                         </span>
                         <span>
-                          Kunci Jawaban: <strong>Opsi {ans.correctAnswer}</strong>
+                          Kunci Jawaban:{' '}
+                          <strong>
+                            {ans.type === 'pg' || (!ans.type && typeof ans.correctAnswer === 'string' && ans.correctAnswer.length === 1)
+                              ? `Opsi ${ans.correctAnswer}`
+                              : String(ans.correctAnswer)}
+                          </strong>
                         </span>
                       </div>
                       {questionObj && questionObj.explanation && (

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X, AlertCircle } from 'lucide-react';
-import { Question, Passage } from '../types';
+import { X, AlertCircle, Plus, Trash2 } from 'lucide-react';
+import { Question, Passage, QuestionType, CategoryStatement } from '../types';
 import { storageService } from '../services/storageService';
 import { useToast } from './Toast';
 
@@ -20,20 +20,46 @@ export const QuestionFormModal: React.FC<QuestionFormModalProps> = ({
   const { showToast } = useToast();
   const [passages, setPassages] = useState<Passage[]>([]);
 
-  // Form State
+  // Core Form State
   const [id, setId] = useState('');
+  const [type, setType] = useState<QuestionType>('pg');
   const [passageId, setPassageId] = useState('');
+  const [stimulusText, setStimulusText] = useState('');
   const [questionText, setQuestionText] = useState('');
+  const [explanation, setExplanation] = useState('');
+  const [category, setCategory] = useState('Pemahaman Tekstual');
+  const [difficulty, setDifficulty] = useState<'mudah' | 'sedang' | 'sulit'>('sedang');
+  const [status, setStatus] = useState<'draft' | 'published'>('published');
+
+  // Metadata State
+  const [noSoal, setNoSoal] = useState<string>('1');
+  const [kompetensi, setKompetensi] = useState<string>('Pemahaman Tekstual');
+  const [subKompetensi, setSubKompetensi] = useState<string>('Mengidentifikasi ide pokok dan informasi tersurat');
+  const [bentukSoal, setBentukSoal] = useState<string>('Pilihan Ganda (PG)');
+
+  // Type 1: PG (A–E)
   const [optA, setOptA] = useState('');
   const [optB, setOptB] = useState('');
   const [optC, setOptC] = useState('');
   const [optD, setOptD] = useState('');
   const [optE, setOptE] = useState('');
   const [correctAnswer, setCorrectAnswer] = useState<'A' | 'B' | 'C' | 'D' | 'E'>('A');
-  const [explanation, setExplanation] = useState('');
-  const [category, setCategory] = useState('Pemahaman Tekstual');
-  const [difficulty, setDifficulty] = useState<'mudah' | 'sedang' | 'sulit'>('sedang');
-  const [status, setStatus] = useState<'draft' | 'published'>('published');
+
+  // Type 2: PGK MCMA
+  const [mcmaA, setMcmaA] = useState('');
+  const [mcmaB, setMcmaB] = useState('');
+  const [mcmaC, setMcmaC] = useState('');
+  const [mcmaD, setMcmaD] = useState('');
+  const [mcmaE, setMcmaE] = useState('');
+  const [mcmaCorrect, setMcmaCorrect] = useState<string[]>(['B', 'C']);
+
+  // Type 3: PGK Kategori
+  const [categoryStatements, setCategoryStatements] = useState<CategoryStatement[]>([
+    { id: 'A', statement: 'Pernyataan pertama...', correctValue: 'Tepat' },
+    { id: 'B', statement: 'Pernyataan kedua...', correctValue: 'Tidak Tepat' },
+    { id: 'C', statement: 'Pernyataan ketiga...', correctValue: 'Tepat' },
+  ]);
+  const [categoryCols, setCategoryCols] = useState<string>('Tepat, Tidak Tepat');
 
   // Validation errors
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -45,35 +71,89 @@ export const QuestionFormModal: React.FC<QuestionFormModalProps> = ({
 
       if (questionToEdit) {
         setId(questionToEdit.id);
+        const qType = questionToEdit.type || 'pg';
+        setType(qType);
         setPassageId(questionToEdit.passageId || '');
+        setStimulusText(questionToEdit.stimulusText || '');
         setQuestionText(questionToEdit.question);
-        setOptA(questionToEdit.options.A);
-        setOptB(questionToEdit.options.B);
-        setOptC(questionToEdit.options.C);
-        setOptD(questionToEdit.options.D);
-        setOptE(questionToEdit.options.E);
-        setCorrectAnswer(questionToEdit.correctAnswer);
         setExplanation(questionToEdit.explanation || '');
         setCategory(questionToEdit.category || 'Pemahaman Tekstual');
         setDifficulty(questionToEdit.difficulty);
         setStatus(questionToEdit.status);
+
+        // Metadata
+        setNoSoal(String(questionToEdit.metadata?.noSoal || '1'));
+        setKompetensi(questionToEdit.metadata?.kompetensi || questionToEdit.category || 'Pemahaman Tekstual');
+        setSubKompetensi(questionToEdit.metadata?.subKompetensi || '');
+        setBentukSoal(questionToEdit.metadata?.bentukSoal || (qType === 'pgk_kategori' ? 'PGK Kategori' : qType === 'pgk_mcma' ? 'PGK MCMA' : 'Pilihan Ganda (PG)'));
+
+        // PG options
+        if (questionToEdit.options) {
+          setOptA(questionToEdit.options.A || '');
+          setOptB(questionToEdit.options.B || '');
+          setOptC(questionToEdit.options.C || '');
+          setOptD(questionToEdit.options.D || '');
+          setOptE(questionToEdit.options.E || '');
+          setCorrectAnswer((questionToEdit.correctAnswer as any) || 'A');
+        }
+
+        // MCMA
+        if (questionToEdit.mcmaOptions) {
+          setMcmaA(questionToEdit.mcmaOptions.A || '');
+          setMcmaB(questionToEdit.mcmaOptions.B || '');
+          setMcmaC(questionToEdit.mcmaOptions.C || '');
+          setMcmaD(questionToEdit.mcmaOptions.D || '');
+          setMcmaE(questionToEdit.mcmaOptions.E || '');
+        }
+        setMcmaCorrect(questionToEdit.mcmaCorrectAnswers || ['A']);
+
+        // Kategori
+        if (questionToEdit.categoryStatements) {
+          setCategoryStatements(questionToEdit.categoryStatements);
+        }
+        if (questionToEdit.categoryColumns) {
+          setCategoryCols(questionToEdit.categoryColumns.join(', '));
+        }
       } else {
-        // New question default
-        const newId = `soal-${Date.now().toString().slice(-5)}`;
+        // New question defaults
+        const total = storageService.getQuestions().length;
+        const newNo = total + 1;
+        const newId = `soal-${newNo.toString().padStart(2, '0')}`;
         setId(newId);
-        const existingPassages = storageService.getPassages();
-        setPassageId(existingPassages.length > 0 ? existingPassages[0].id : '');
+        setType('pg');
+        setPassageId('');
+        setStimulusText('');
         setQuestionText('');
+        setExplanation('');
+        setCategory('Pemahaman Tekstual');
+        setDifficulty('sedang');
+        setStatus('published');
+
+        setNoSoal(String(newNo));
+        setKompetensi('Pemahaman Tekstual');
+        setSubKompetensi('Mengidentifikasi gagasan utama dan perincian isi teks');
+        setBentukSoal('Pilihan Ganda (PG)');
+
         setOptA('');
         setOptB('');
         setOptC('');
         setOptD('');
         setOptE('');
         setCorrectAnswer('A');
-        setExplanation('');
-        setCategory('Pemahaman Tekstual');
-        setDifficulty('sedang');
-        setStatus('published');
+
+        setMcmaA('');
+        setMcmaB('');
+        setMcmaC('');
+        setMcmaD('');
+        setMcmaE('');
+        setMcmaCorrect(['B', 'C']);
+
+        setCategoryStatements([
+          { id: 'A', statement: 'Pernyataan contoh A...', correctValue: 'Tepat' },
+          { id: 'B', statement: 'Pernyataan contoh B...', correctValue: 'Tidak Tepat' },
+          { id: 'C', statement: 'Pernyataan contoh C...', correctValue: 'Tepat' },
+        ]);
+        setCategoryCols('Tepat, Tidak Tepat');
       }
     }
   }, [isOpen, questionToEdit]);
@@ -85,19 +165,21 @@ export const QuestionFormModal: React.FC<QuestionFormModalProps> = ({
 
     if (!id.trim()) errs.id = 'ID Soal wajib diisi.';
     if (!questionText.trim()) errs.questionText = 'Teks pertanyaan wajib diisi.';
-    if (!optA.trim()) errs.optA = 'Pilihan A wajib diisi.';
-    if (!optB.trim()) errs.optB = 'Pilihan B wajib diisi.';
-    if (!optC.trim()) errs.optC = 'Pilihan C wajib diisi.';
-    if (!optD.trim()) errs.optD = 'Pilihan D wajib diisi.';
-    if (!optE.trim()) errs.optE = 'Pilihan E wajib diisi.';
-    if (!['A', 'B', 'C', 'D', 'E'].includes(correctAnswer)) {
-      errs.correctAnswer = 'Kunci jawaban harus berupa salah satu dari A–E.';
-    }
     if (!category.trim()) errs.category = 'Kategori soal wajib diisi.';
 
-    if (status === 'published') {
-      if (!optA.trim() || !optB.trim() || !optC.trim() || !optD.trim() || !optE.trim()) {
-        errs.status = 'Soal dengan status "Published" harus memiliki seluruh opsi A–E lengkap.';
+    if (type === 'pg') {
+      if (!optA.trim()) errs.optA = 'Pilihan A wajib diisi.';
+      if (!optB.trim()) errs.optB = 'Pilihan B wajib diisi.';
+      if (!optC.trim()) errs.optC = 'Pilihan C wajib diisi.';
+      if (!optD.trim()) errs.optD = 'Pilihan D wajib diisi.';
+      if (!optE.trim()) errs.optE = 'Pilihan E wajib diisi.';
+    } else if (type === 'pgk_mcma') {
+      if (mcmaCorrect.length === 0) {
+        errs.mcmaCorrect = 'Pilih minimal satu kunci jawaban untuk PGK MCMA.';
+      }
+    } else if (type === 'pgk_kategori') {
+      if (categoryStatements.length === 0) {
+        errs.categoryStatements = 'Minimal harus ada 1 baris pernyataan untuk PGK Kategori.';
       }
     }
 
@@ -112,35 +194,62 @@ export const QuestionFormModal: React.FC<QuestionFormModalProps> = ({
       return;
     }
 
-    const payload = {
+    const colsArray = categoryCols
+      .split(',')
+      .map((c) => c.trim())
+      .filter(Boolean);
+
+    const payload: Partial<Question> = {
       id: id.trim(),
-      passageId: passageId.trim(),
+      type,
+      passageId: passageId.trim() || undefined,
+      stimulusText: stimulusText.trim() || undefined,
       question: questionText.trim(),
-      options: {
+      explanation: explanation.trim(),
+      category: category.trim(),
+      difficulty,
+      status,
+      metadata: {
+        noSoal: Number(noSoal) || noSoal,
+        kompetensi: kompetensi.trim(),
+        subKompetensi: subKompetensi.trim(),
+        bentukSoal: bentukSoal.trim(),
+      },
+    };
+
+    if (type === 'pg') {
+      payload.options = {
         A: optA.trim(),
         B: optB.trim(),
         C: optC.trim(),
         D: optD.trim(),
         E: optE.trim(),
-      },
-      correctAnswer,
-      explanation: explanation.trim(),
-      category: category.trim(),
-      difficulty,
-      status,
-    };
+      };
+      payload.correctAnswer = correctAnswer;
+    } else if (type === 'pgk_mcma') {
+      payload.mcmaOptions = {
+        A: mcmaA.trim(),
+        B: mcmaB.trim(),
+        C: mcmaC.trim(),
+        D: mcmaD.trim(),
+        E: mcmaE.trim(),
+      };
+      payload.mcmaCorrectAnswers = mcmaCorrect;
+    } else if (type === 'pgk_kategori') {
+      payload.categoryColumns = colsArray.length > 0 ? colsArray : ['Tepat', 'Tidak Tepat'];
+      payload.categoryStatements = categoryStatements;
+    }
 
     if (questionToEdit) {
-      storageService.updateQuestion(questionToEdit.id, payload);
+      storageService.updateQuestion(questionToEdit.id, payload as any);
       showToast('Soal berhasil diperbarui', 'success');
     } else {
-      // Check ID conflict
-      if (storageService.getQuestionById(payload.id)) {
+      if (storageService.getQuestionById(payload.id!)) {
         setErrors((prev) => ({ ...prev, id: 'ID Soal sudah digunakan. Gunakan ID lain.' }));
         showToast('ID Soal sudah ada di sistem', 'error');
         return;
       }
-      storageService.createQuestion(payload);
+      storageService.createQuestion(payload as any);
       showToast('Soal baru berhasil disimpan ke bank soal', 'success');
     }
 
@@ -148,17 +257,23 @@ export const QuestionFormModal: React.FC<QuestionFormModalProps> = ({
     onClose();
   };
 
+  const handleToggleMcmaKey = (key: string) => {
+    setMcmaCorrect((prev) =>
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key].sort()
+    );
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-3 sm:p-5 overflow-y-auto">
-      <div className="bg-white rounded-2xl max-w-2xl w-full shadow-2xl border border-slate-100 max-h-[92vh] flex flex-col my-auto animate-in zoom-in-95 duration-200">
+      <div className="bg-white rounded-2xl max-w-3xl w-full shadow-2xl border border-slate-100 max-h-[92vh] flex flex-col my-auto animate-in zoom-in-95 duration-200">
         {/* Header */}
         <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/70 rounded-t-2xl">
           <div>
             <h3 className="text-lg font-bold text-slate-800">
-              {questionToEdit ? 'Edit Soal' : 'Tambah Soal Baru'}
+              {questionToEdit ? 'Edit Butir Soal Master' : 'Tambah Butir Soal Master'}
             </h3>
             <p className="text-xs text-slate-500 mt-0.5">
-              Formulir pembuatan soal pilihan ganda A–E TKA Bahasa Indonesia
+              Format TKA SMA Bahasa Indonesia 2026 (PG, PGK Kategori, & PGK MCMA)
             </p>
           </div>
           <button
@@ -170,36 +285,99 @@ export const QuestionFormModal: React.FC<QuestionFormModalProps> = ({
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-5 sm:p-6 overflow-y-auto space-y-5 flex-1 text-sm">
-          {/* Metadata Row */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <form onSubmit={handleSubmit} className="p-5 sm:p-6 overflow-y-auto space-y-5 text-sm flex-1">
+          {/* Metadata Section */}
+          <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
+            <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+              1. Tabel Metadata & Kompetensi Soal
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">No. Soal</label>
+                <input
+                  type="text"
+                  value={noSoal}
+                  onChange={(e) => setNoSoal(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-xl bg-white text-xs"
+                  placeholder="1..30"
+                />
+              </div>
+              <div className="sm:col-span-3">
+                <label className="block text-xs font-semibold text-slate-600 mb-1">
+                  Kompetensi
+                </label>
+                <select
+                  value={kompetensi}
+                  onChange={(e) => {
+                    setKompetensi(e.target.value);
+                    setCategory(e.target.value);
+                  }}
+                  className="w-full px-3 py-2 border rounded-xl bg-white text-xs"
+                >
+                  <option value="Pemahaman Tekstual">Pemahaman Tekstual</option>
+                  <option value="Evaluasi dan Apresiasi">Evaluasi dan Apresiasi</option>
+                  <option value="Penalaran Analitis">Penalaran Analitis</option>
+                </select>
+              </div>
+              <div className="sm:col-span-4">
+                <label className="block text-xs font-semibold text-slate-600 mb-1">
+                  Sub-Kompetensi / Rincian
+                </label>
+                <input
+                  type="text"
+                  value={subKompetensi}
+                  onChange={(e) => setSubKompetensi(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-xl bg-white text-xs"
+                  placeholder="Contoh: Mengidentifikasi ide pokok dan informasi tersurat"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Type Selector */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                ID Soal <span className="text-rose-500">*</span>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Tipe / Bentuk Soal *
               </label>
+              <select
+                value={type}
+                onChange={(e) => {
+                  const val = e.target.value as QuestionType;
+                  setType(val);
+                  if (val === 'pg') setBentukSoal('Pilihan Ganda (PG)');
+                  if (val === 'pgk_kategori') setBentukSoal('PGK Kategori');
+                  if (val === 'pgk_mcma') setBentukSoal('PGK MCMA');
+                }}
+                className="w-full px-3 py-2 border border-slate-300 rounded-xl bg-white text-xs font-semibold"
+              >
+                <option value="pg">Pilihan Ganda (PG A–E)</option>
+                <option value="pgk_kategori">PGK Kategori (Tabel Pernyataan)</option>
+                <option value="pgk_mcma">PGK MCMA (Multi Jawaban)</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">ID Soal *</label>
               <input
                 type="text"
                 value={id}
                 onChange={(e) => setId(e.target.value)}
-                disabled={!!questionToEdit}
-                placeholder="misal: soal-1"
-                className={`w-full px-3.5 py-2 rounded-xl border ${
-                  errors.id ? 'border-rose-400 bg-rose-50/50' : 'border-slate-300'
-                } bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100 disabled:text-slate-500`}
+                className={`w-full px-3 py-2 border rounded-xl text-xs ${
+                  errors.id ? 'border-red-500 bg-red-50' : 'border-slate-300'
+                }`}
+                placeholder="soal-01"
               />
-              {errors.id && <p className="text-xs text-rose-600 mt-1">{errors.id}</p>}
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Teks Bacaan Rujukan
-              </label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Wacana Terkait</label>
               <select
                 value={passageId}
                 onChange={(e) => setPassageId(e.target.value)}
-                className="w-full px-3.5 py-2 rounded-xl border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-slate-300 rounded-xl bg-white text-xs"
               >
-                <option value="">-- Tanpa Bacaan Rujukan --</option>
+                <option value="">-- Tanpa Wacana Terikat --</option>
                 {passages.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.title}
@@ -209,159 +387,298 @@ export const QuestionFormModal: React.FC<QuestionFormModalProps> = ({
             </div>
           </div>
 
+          {/* Stimulus Text (Optional) */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
+              Teks Stimulus / Kutipan (Opsional jika berdiri sendiri)
+            </label>
+            <textarea
+              rows={3}
+              value={stimulusText}
+              onChange={(e) => setStimulusText(e.target.value)}
+              className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-serif leading-relaxed"
+              placeholder="Masukkan kutipan teks/cerpen/wacana singkat yang menjadi stimulus pertanyaan ini..."
+            />
+          </div>
+
           {/* Question Text */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">
-              Teks Pertanyaan <span className="text-rose-500">*</span>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
+              Teks Pertanyaan *
             </label>
             <textarea
               rows={3}
               value={questionText}
               onChange={(e) => setQuestionText(e.target.value)}
-              placeholder="Tuliskan teks pertanyaan soal..."
-              className={`w-full px-3.5 py-2.5 rounded-xl border ${
-                errors.questionText ? 'border-rose-400 bg-rose-50/50' : 'border-slate-300'
-              } text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500`}
+              className={`w-full px-3 py-2 border rounded-xl text-xs font-medium ${
+                errors.questionText ? 'border-red-500 bg-red-50' : 'border-slate-300'
+              }`}
+              placeholder="Tuliskan butir pertanyaan di sini..."
             />
-            {errors.questionText && (
-              <p className="text-xs text-rose-600 mt-1">{errors.questionText}</p>
-            )}
           </div>
 
-          {/* Options A-E */}
-          <div className="space-y-3 bg-slate-50/80 p-4 rounded-xl border border-slate-200/80">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-slate-700">
-                Pilihan Jawaban (A–E) & Kunci Jawaban <span className="text-rose-500">*</span>
-              </label>
-              <span className="text-xs text-slate-500">Pilih radio button untuk menentukan kunci</span>
-            </div>
+          {/* TYPE 1: PG Inputs */}
+          {type === 'pg' && (
+            <div className="space-y-3 bg-blue-50/40 p-4 rounded-xl border border-blue-100">
+              <span className="text-xs font-bold text-blue-900 uppercase tracking-wider block">
+                Pilihan Jawaban A–E:
+              </span>
+              {(['A', 'B', 'C', 'D', 'E'] as const).map((key) => {
+                const val =
+                  key === 'A' ? optA : key === 'B' ? optB : key === 'C' ? optC : key === 'D' ? optD : optE;
+                const setter =
+                  key === 'A'
+                    ? setOptA
+                    : key === 'B'
+                    ? setOptB
+                    : key === 'C'
+                    ? setOptC
+                    : key === 'D'
+                    ? setOptD
+                    : setOptE;
+                return (
+                  <div key={key} className="flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center font-bold text-xs shrink-0">
+                      {key}
+                    </span>
+                    <input
+                      type="text"
+                      value={val}
+                      onChange={(e) => setter(e.target.value)}
+                      placeholder={`Opsi ${key}...`}
+                      className="flex-1 px-3 py-1.5 border border-slate-300 rounded-lg text-xs bg-white"
+                    />
+                  </div>
+                );
+              })}
 
-            {[
-              { key: 'A', val: optA, set: setOptA, err: errors.optA },
-              { key: 'B', val: optB, set: setOptB, err: errors.optB },
-              { key: 'C', val: optC, set: setOptC, err: errors.optC },
-              { key: 'D', val: optD, set: setOptD, err: errors.optD },
-              { key: 'E', val: optE, set: setOptE, err: errors.optE },
-            ].map((opt) => (
-              <div key={opt.key} className="flex items-center gap-3">
-                <label className="flex items-center gap-1.5 cursor-pointer shrink-0">
-                  <input
-                    type="radio"
-                    name="correctAnswer"
-                    checked={correctAnswer === opt.key}
-                    onChange={() => setCorrectAnswer(opt.key as any)}
-                    className="w-4 h-4 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
-                  />
-                  <span
-                    className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs ${
-                      correctAnswer === opt.key
-                        ? 'bg-emerald-600 text-white shadow-sm'
-                        : 'bg-slate-200 text-slate-700'
-                    }`}
-                  >
-                    {opt.key}
-                  </span>
+              <div className="pt-2">
+                <label className="block text-xs font-semibold text-blue-950 mb-1">
+                  Kunci Jawaban Benar:
                 </label>
-                <div className="flex-1">
-                  <input
-                    type="text"
-                    value={opt.val}
-                    onChange={(e) => opt.set(e.target.value)}
-                    placeholder={`Teks pilihan ${opt.key}...`}
-                    className={`w-full px-3 py-1.5 rounded-lg border ${
-                      opt.err ? 'border-rose-400 bg-rose-50/50' : 'border-slate-300'
-                    } bg-white text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                  />
-                  {opt.err && <p className="text-xs text-rose-600 mt-0.5">{opt.err}</p>}
+                <div className="flex gap-2">
+                  {(['A', 'B', 'C', 'D', 'E'] as const).map((k) => (
+                    <button
+                      type="button"
+                      key={k}
+                      onClick={() => setCorrectAnswer(k)}
+                      className={`w-8 h-8 rounded-lg font-bold text-xs transition ${
+                        correctAnswer === k
+                          ? 'bg-emerald-600 text-white shadow-xs'
+                          : 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      {k}
+                    </button>
+                  ))}
                 </div>
               </div>
-            ))}
-          </div>
+            </div>
+          )}
+
+          {/* TYPE 2: PGK MCMA Inputs */}
+          {type === 'pgk_mcma' && (
+            <div className="space-y-3 bg-purple-50/40 p-4 rounded-xl border border-purple-100">
+              <span className="text-xs font-bold text-purple-900 uppercase tracking-wider block">
+                Pilihan Jawaban MCMA (Pilihan Ganda Kompleks):
+              </span>
+              <p className="text-[11px] text-purple-700 mb-2">
+                Centang kotak di sebelah kiri untuk menandai opsi yang menjadi kunci jawaban benar.
+              </p>
+              {(['A', 'B', 'C', 'D', 'E'] as const).map((key) => {
+                const val =
+                  key === 'A'
+                    ? mcmaA
+                    : key === 'B'
+                    ? mcmaB
+                    : key === 'C'
+                    ? mcmaC
+                    : key === 'D'
+                    ? mcmaD
+                    : mcmaE;
+                const setter =
+                  key === 'A'
+                    ? setMcmaA
+                    : key === 'B'
+                    ? setMcmaB
+                    : key === 'C'
+                    ? setMcmaC
+                    : key === 'D'
+                    ? setMcmaD
+                    : setMcmaE;
+                const isKey = mcmaCorrect.includes(key);
+
+                return (
+                  <div key={key} className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleToggleMcmaKey(key)}
+                      className={`w-6 h-6 rounded-md flex items-center justify-center font-bold text-xs shrink-0 transition ${
+                        isKey ? 'bg-purple-600 text-white' : 'bg-slate-200 text-slate-700'
+                      }`}
+                    >
+                      {key}
+                    </button>
+                    <input
+                      type="text"
+                      value={val}
+                      onChange={(e) => setter(e.target.value)}
+                      placeholder={`Opsi ${key}...`}
+                      className="flex-1 px-3 py-1.5 border border-slate-300 rounded-lg text-xs bg-white"
+                    />
+                    <span className="text-[11px] text-slate-500 font-medium">
+                      {isKey ? '✓ Kunci' : ''}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* TYPE 3: PGK Kategori Inputs */}
+          {type === 'pgk_kategori' && (
+            <div className="space-y-3 bg-amber-50/40 p-4 rounded-xl border border-amber-200">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-amber-900 uppercase tracking-wider">
+                  Tabel Pernyataan & Kunci Nilai:
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const nextId = String.fromCharCode(65 + categoryStatements.length);
+                    setCategoryStatements([
+                      ...categoryStatements,
+                      { id: nextId, statement: '', correctValue: 'Tepat' },
+                    ]);
+                  }}
+                  className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold flex items-center gap-1"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Tambah Baris
+                </button>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Nama Kolom Kategori (pisahkan dengan koma):
+                </label>
+                <input
+                  type="text"
+                  value={categoryCols}
+                  onChange={(e) => setCategoryCols(e.target.value)}
+                  className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs bg-white"
+                  placeholder="Tepat, Tidak Tepat"
+                />
+              </div>
+
+              <div className="space-y-2 pt-2">
+                {categoryStatements.map((stmt, idx) => (
+                  <div key={stmt.id || idx} className="flex items-center gap-2 bg-white p-2 rounded-lg border border-slate-200">
+                    <span className="font-bold text-xs w-6 text-center">{stmt.id || idx + 1}</span>
+                    <input
+                      type="text"
+                      value={stmt.statement}
+                      onChange={(e) => {
+                        const copy = [...categoryStatements];
+                        copy[idx].statement = e.target.value;
+                        setCategoryStatements(copy);
+                      }}
+                      placeholder={`Pernyataan ${stmt.id}...`}
+                      className="flex-1 px-2.5 py-1 text-xs border border-slate-300 rounded"
+                    />
+                    <select
+                      value={stmt.correctValue}
+                      onChange={(e) => {
+                        const copy = [...categoryStatements];
+                        copy[idx].correctValue = e.target.value;
+                        setCategoryStatements(copy);
+                      }}
+                      className="px-2 py-1 text-xs border border-slate-300 rounded font-semibold bg-slate-50"
+                    >
+                      {categoryCols.split(',').map((c) => {
+                        const trimmed = c.trim();
+                        return (
+                          <option key={trimmed} value={trimmed}>
+                            Kunci: {trimmed}
+                          </option>
+                        );
+                      })}
+                    </select>
+                    {categoryStatements.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCategoryStatements(categoryStatements.filter((_, i) => i !== idx));
+                        }}
+                        className="text-rose-500 hover:text-rose-700 p-1"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Explanation */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">
-              Pembahasan / Penjelasan Jawaban (Opsional)
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
+              Pembahasan Lengkap (Ditampilkan setelah siswa mengumpulkan kuis)
             </label>
             <textarea
-              rows={2}
+              rows={3}
               value={explanation}
               onChange={(e) => setExplanation(e.target.value)}
-              placeholder="Tuliskan pembahasan mengapa opsi tersebut adalah jawaban yang tepat..."
-              className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs leading-relaxed"
+              placeholder="Jelaskan alasan kunci jawaban benar dan analisis pilihan jawaban lainnya..."
             />
           </div>
 
-          {/* Classification Row: Category, Difficulty, Status */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {/* Difficulty & Status */}
+          <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-100">
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Kategori <span className="text-rose-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                placeholder="misal: Pemahaman Tekstual"
-                className="w-full px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Tingkat Kesulitan
-              </label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Tingkat Kesulitan</label>
               <select
                 value={difficulty}
                 onChange={(e) => setDifficulty(e.target.value as any)}
-                className="w-full px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 capitalize"
+                className="w-full px-3 py-2 border border-slate-300 rounded-xl bg-white text-xs"
               >
                 <option value="mudah">Mudah</option>
                 <option value="sedang">Sedang</option>
                 <option value="sulit">Sulit</option>
               </select>
             </div>
-
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Status Publikasi
-              </label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Status Publikasi</label>
               <select
                 value={status}
                 onChange={(e) => setStatus(e.target.value as any)}
-                className="w-full px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-slate-300 rounded-xl bg-white text-xs font-semibold"
               >
-                <option value="published">Published (Tayang)</option>
-                <option value="draft">Draft</option>
+                <option value="published">Published (Siap Dikerjakan)</option>
+                <option value="draft">Draft (Disimpan Sementara)</option>
               </select>
             </div>
           </div>
-
-          {errors.status && (
-            <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              <span>{errors.status}</span>
-            </div>
-          )}
-
-          {/* Footer Actions */}
-          <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-medium transition"
-            >
-              Batal
-            </button>
-            <button
-              type="submit"
-              className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold transition shadow-sm"
-            >
-              {questionToEdit ? 'Simpan Perubahan' : 'Simpan Soal'}
-            </button>
-          </div>
         </form>
+
+        {/* Footer */}
+        <div className="p-4 border-t border-slate-100 flex items-center justify-end gap-3 bg-slate-50/70 rounded-b-2xl">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 text-slate-600 bg-slate-200/80 hover:bg-slate-300 rounded-xl font-medium transition text-xs sm:text-sm"
+          >
+            Batal
+          </button>
+          <button
+            type="button"
+            onClick={handleSubmit}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold transition text-xs sm:text-sm shadow-md"
+          >
+            {questionToEdit ? 'Simpan Perubahan' : 'Tambah ke Bank Soal'}
+          </button>
+        </div>
       </div>
     </div>
   );

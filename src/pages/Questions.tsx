@@ -8,8 +8,8 @@ import {
   Trash2,
   HelpCircle,
   CheckCircle,
-  FileQuestion,
   BookOpen,
+  Sparkles,
 } from 'lucide-react';
 import { Question, Passage } from '../types';
 import { storageService, STORAGE_EVENT_KEY } from '../services/storageService';
@@ -30,10 +30,11 @@ export const Questions: React.FC<QuestionsProps> = ({ initialCreateOpen = false 
   // Search & Filters
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedBentuk, setSelectedBentuk] = useState<string>('all');
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [selectedPassage, setSelectedPassage] = useState<string>('all');
-  const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
+  const [sortBy, setSortBy] = useState<'number' | 'newest' | 'oldest'>('number');
 
   // Modals
   const [formOpen, setFormOpen] = useState(initialCreateOpen);
@@ -65,14 +66,23 @@ export const Questions: React.FC<QuestionsProps> = ({ initialCreateOpen = false 
     return questions
       .filter((q) => {
         // Search text
+        const qSub = q.metadata?.subKompetensi || '';
         const matchesQuery =
           q.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
           q.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          qSub.toLowerCase().includes(searchQuery.toLowerCase()) ||
           q.id.toLowerCase().includes(searchQuery.toLowerCase());
 
         // Category filter
         const matchesCategory =
           selectedCategory === 'all' || q.category === selectedCategory;
+
+        // Bentuk Soal filter
+        const qType = q.type || 'pg';
+        const matchesBentuk =
+          selectedBentuk === 'all' ||
+          qType === selectedBentuk ||
+          q.metadata?.bentukSoal?.toLowerCase().includes(selectedBentuk.toLowerCase());
 
         // Difficulty filter
         const matchesDifficulty =
@@ -89,22 +99,28 @@ export const Questions: React.FC<QuestionsProps> = ({ initialCreateOpen = false 
         return (
           matchesQuery &&
           matchesCategory &&
+          matchesBentuk &&
           matchesDifficulty &&
           matchesStatus &&
           matchesPassage
         );
       })
       .sort((a, b) => {
+        if (sortBy === 'number') {
+          const numA = Number(a.metadata?.noSoal) || 999;
+          const numB = Number(b.metadata?.noSoal) || 999;
+          return numA - numB;
+        }
         if (sortBy === 'newest') {
           return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-        } else {
-          return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
         }
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
       });
   }, [
     questions,
     searchQuery,
     selectedCategory,
+    selectedBentuk,
     selectedDifficulty,
     selectedStatus,
     selectedPassage,
@@ -127,12 +143,16 @@ export const Questions: React.FC<QuestionsProps> = ({ initialCreateOpen = false 
       {/* Header & Title */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-blue-50 text-blue-700 text-xs font-bold mb-1 border border-blue-200">
+            <Sparkles className="w-3.5 h-3.5" />
+            30 SOAL MASTER TKA 2026
+          </div>
           <h2 className="text-2xl font-extrabold text-slate-800 tracking-tight flex items-center gap-2.5">
             <HelpCircle className="w-7 h-7 text-blue-600" />
             Bank Soal TKA Bahasa Indonesia
           </h2>
-          <p className="text-sm text-slate-500 mt-1">
-            Kelola seluruh koleksi soal pilihan ganda A–E, kunci jawaban, dan status tayang
+          <p className="text-sm text-slate-500 mt-0.5">
+            Koleksi butir soal master TKA SMA 2026 (Pilihan Ganda, PGK Kategori, dan PGK MCMA) dengan metadata kompetensi lengkap.
           </p>
         </div>
 
@@ -149,28 +169,42 @@ export const Questions: React.FC<QuestionsProps> = ({ initialCreateOpen = false 
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm space-y-3">
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
+      <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs space-y-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3">
           {/* Search Input */}
-          <div className="md:col-span-4 relative">
+          <div className="lg:col-span-4 relative">
             <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Cari pertanyaan, kategori, atau ID..."
+              placeholder="Cari pertanyaan, sub-kompetensi, ID..."
               className="w-full pl-9 pr-4 py-2 text-sm rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
             />
           </div>
 
+          {/* Bentuk Soal Filter */}
+          <div className="lg:col-span-2">
+            <select
+              value={selectedBentuk}
+              onChange={(e) => setSelectedBentuk(e.target.value)}
+              className="w-full py-2 px-3 text-sm rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-medium"
+            >
+              <option value="all">Semua Bentuk Soal</option>
+              <option value="pg">Pilihan Ganda (PG)</option>
+              <option value="pgk_kategori">PGK Kategori</option>
+              <option value="pgk_mcma">PGK MCMA</option>
+            </select>
+          </div>
+
           {/* Category Filter */}
-          <div className="md:col-span-2">
+          <div className="lg:col-span-2">
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
               className="w-full py-2 px-3 text-sm rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
             >
-              <option value="all">Semua Kategori</option>
+              <option value="all">Semua Kompetensi</option>
               {categories.map((c) => (
                 <option key={c} value={c}>
                   {c}
@@ -179,22 +213,8 @@ export const Questions: React.FC<QuestionsProps> = ({ initialCreateOpen = false 
             </select>
           </div>
 
-          {/* Difficulty Filter */}
-          <div className="md:col-span-2">
-            <select
-              value={selectedDifficulty}
-              onChange={(e) => setSelectedDifficulty(e.target.value)}
-              className="w-full py-2 px-3 text-sm rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-            >
-              <option value="all">Semua Tingkat</option>
-              <option value="mudah">Mudah</option>
-              <option value="sedang">Sedang</option>
-              <option value="sulit">Sulit</option>
-            </select>
-          </div>
-
           {/* Status Filter */}
-          <div className="md:col-span-2">
+          <div className="lg:col-span-2">
             <select
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
@@ -207,14 +227,15 @@ export const Questions: React.FC<QuestionsProps> = ({ initialCreateOpen = false 
           </div>
 
           {/* Sort By */}
-          <div className="md:col-span-2">
+          <div className="lg:col-span-2">
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as any)}
               className="w-full py-2 px-3 text-sm rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
             >
-              <option value="newest">Terbaru</option>
-              <option value="oldest">Terlama</option>
+              <option value="number">Urut No. Soal (1–30)</option>
+              <option value="newest">Terbaru Dibuat</option>
+              <option value="oldest">Terlama Dibuat</option>
             </select>
           </div>
         </div>
@@ -251,21 +272,22 @@ export const Questions: React.FC<QuestionsProps> = ({ initialCreateOpen = false 
         )}
       </div>
 
-      {/* Questions Table / List */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+      {/* Questions Table Card */}
+      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
         {filteredQuestions.length === 0 ? (
-          <div className="text-center py-16 px-4">
-            <div className="w-16 h-16 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-3">
-              <FileQuestion className="w-8 h-8" />
+          <div className="p-12 text-center">
+            <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-600 mx-auto flex items-center justify-center mb-3">
+              <Filter className="w-8 h-8" />
             </div>
-            <h3 className="text-base font-bold text-slate-800">Tidak ada soal yang ditemukan</h3>
+            <h3 className="text-base font-bold text-slate-800">Tidak ada soal yang cocok</h3>
             <p className="text-sm text-slate-500 mt-1 max-w-sm mx-auto">
-              Coba sesuaikan kata kunci pencarian atau bersihkan filter yang aktif.
+              Coba sesuaikan kata kunci pencarian atau bersihkan filter di atas.
             </p>
             <button
               onClick={() => {
                 setSearchQuery('');
                 setSelectedCategory('all');
+                setSelectedBentuk('all');
                 setSelectedDifficulty('all');
                 setSelectedStatus('all');
                 setSelectedPassage('all');
@@ -280,65 +302,99 @@ export const Questions: React.FC<QuestionsProps> = ({ initialCreateOpen = false 
             <table className="w-full text-left text-sm text-slate-700">
               <thead className="bg-slate-50/80 text-xs text-slate-500 uppercase font-bold border-b border-slate-200">
                 <tr>
-                  <th className="px-4 py-3.5 w-14 text-center">No</th>
-                  <th className="px-4 py-3.5">Pertanyaan</th>
-                  <th className="px-4 py-3.5">Kategori</th>
-                  <th className="px-4 py-3.5">Tipe</th>
-                  <th className="px-4 py-3.5 text-center">Jawaban</th>
+                  <th className="px-4 py-3.5 w-16 text-center">No</th>
+                  <th className="px-4 py-3.5">Pertanyaan & Sub-Kompetensi</th>
+                  <th className="px-4 py-3.5">Kompetensi</th>
+                  <th className="px-4 py-3.5">Bentuk Soal</th>
+                  <th className="px-4 py-3.5 text-center">Kunci</th>
                   <th className="px-4 py-3.5">Status</th>
-                  <th className="px-4 py-3.5 text-right w-36">Aksi</th>
+                  <th className="px-4 py-3.5 text-right w-32">Aksi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredQuestions.map((q, index) => {
+                  const noLabel = q.metadata?.noSoal || index + 1;
+                  const type = q.type || 'pg';
+
                   return (
                     <tr
                       key={q.id}
                       className="hover:bg-blue-50/30 transition-colors group"
                     >
-                      {/* No */}
-                      <td className="px-4 py-4 text-center font-semibold text-slate-500">
-                        {index + 1}
+                      {/* No Soal */}
+                      <td className="px-4 py-4 text-center font-bold text-slate-700">
+                        <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-slate-100 text-slate-800 font-extrabold text-xs">
+                          {noLabel}
+                        </span>
                       </td>
 
                       {/* Pertanyaan */}
                       <td className="px-4 py-4 max-w-md">
-                        <div className="font-medium text-slate-900 line-clamp-2">
+                        <div className="font-semibold text-slate-900 line-clamp-2 leading-snug">
                           {q.question}
                         </div>
-                        <div className="flex items-center gap-2 mt-1 text-xs text-slate-400">
-                          <span className="font-mono">{q.id}</span>
-                          <span>•</span>
-                          <span className="capitalize">{q.difficulty}</span>
+                        {q.metadata?.subKompetensi && (
+                          <p className="text-xs text-slate-500 line-clamp-1 mt-1 italic">
+                            {q.metadata.subKompetensi}
+                          </p>
+                        )}
+                        <div className="flex items-center gap-2 mt-1.5 text-xs text-slate-400">
+                          <span className="font-mono text-[11px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-600">
+                            {q.id}
+                          </span>
+                          {q.stimulusText && (
+                            <span className="text-[11px] text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                              Ada Teks Stimulus
+                            </span>
+                          )}
                           {q.passageId && (
-                            <>
-                              <span>•</span>
-                              <span className="flex items-center gap-1 text-blue-600 truncate max-w-[150px]">
-                                <BookOpen className="w-3 h-3 shrink-0" />
-                                {passages.find((p) => p.id === q.passageId)?.title || 'Wacana'}
-                              </span>
-                            </>
+                            <span className="flex items-center gap-1 text-blue-600 truncate max-w-[150px]">
+                              <BookOpen className="w-3 h-3 shrink-0" />
+                              {passages.find((p) => p.id === q.passageId)?.title || 'Wacana'}
+                            </span>
                           )}
                         </div>
                       </td>
 
-                      {/* Kategori */}
+                      {/* Kompetensi */}
                       <td className="px-4 py-4 whitespace-nowrap">
-                        <span className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 text-xs font-semibold">
-                          {q.category}
+                        <span className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-800 text-xs font-semibold">
+                          {q.metadata?.kompetensi || q.category}
                         </span>
                       </td>
 
-                      {/* Tipe */}
-                      <td className="px-4 py-4 whitespace-nowrap text-xs text-slate-600 font-medium">
-                        Pilihan Ganda A–E
+                      {/* Bentuk Soal */}
+                      <td className="px-4 py-4 whitespace-nowrap text-xs">
+                        <span
+                          className={`px-2.5 py-1 rounded-lg font-bold ${
+                            type === 'pgk_kategori'
+                              ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                              : type === 'pgk_mcma'
+                              ? 'bg-purple-50 text-purple-800 border border-purple-200'
+                              : 'bg-blue-50 text-blue-800 border border-blue-200'
+                          }`}
+                        >
+                          {q.metadata?.bentukSoal || (type === 'pgk_kategori' ? 'PGK Kategori' : type === 'pgk_mcma' ? 'PGK MCMA' : 'Pilihan Ganda')}
+                        </span>
                       </td>
 
                       {/* Jawaban */}
                       <td className="px-4 py-4 text-center whitespace-nowrap">
-                        <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-emerald-100 text-emerald-800 font-extrabold text-xs">
-                          {q.correctAnswer}
-                        </span>
+                        {type === 'pg' && (
+                          <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-emerald-100 text-emerald-800 font-extrabold text-xs">
+                            {q.correctAnswer || 'A'}
+                          </span>
+                        )}
+                        {type === 'pgk_mcma' && (
+                          <span className="inline-flex items-center px-2 py-1 rounded-md bg-purple-100 text-purple-800 font-extrabold text-xs">
+                            {q.mcmaCorrectAnswers?.join(', ') || 'Multi'}
+                          </span>
+                        )}
+                        {type === 'pgk_kategori' && (
+                          <span className="inline-flex items-center px-2 py-1 rounded-md bg-amber-100 text-amber-800 font-bold text-xs">
+                            {q.categoryStatements?.length || 3} Pernyataan
+                          </span>
+                        )}
                       </td>
 
                       {/* Status */}
@@ -393,31 +449,20 @@ export const Questions: React.FC<QuestionsProps> = ({ initialCreateOpen = false 
         )}
 
         {/* Table Footer / Summary */}
-        <div className="px-5 py-3.5 bg-slate-50 border-t border-slate-200 text-xs text-slate-500 flex flex-col sm:flex-row items-center justify-between gap-2">
+        <div className="p-4 border-t border-slate-100 bg-slate-50/60 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-2">
           <span>
             Menampilkan <strong>{filteredQuestions.length}</strong> dari{' '}
-            <strong>{questions.length}</strong> total soal
+            <strong>{questions.length}</strong> butir soal master
           </span>
           <span className="text-slate-400">
-            Perubahan otomatis tersimpan ke basis data LocalStorage
+            TKA SMA Bahasa Indonesia • Standar Pusmendik/BPPP 2026
           </span>
         </div>
       </div>
 
-      {/* Create / Edit Modal */}
-      <QuestionFormModal
-        isOpen={formOpen}
-        onClose={() => {
-          setFormOpen(false);
-          setEditingQuestion(null);
-        }}
-        questionToEdit={editingQuestion}
-        onSuccess={loadData}
-      />
-
-      {/* View Detail Modal */}
+      {/* Question Detail Modal */}
       <QuestionDetailModal
-        isOpen={!!viewingQuestion}
+        isOpen={Boolean(viewingQuestion)}
         onClose={() => setViewingQuestion(null)}
         question={viewingQuestion}
         onEdit={(q) => {
@@ -427,15 +472,26 @@ export const Questions: React.FC<QuestionsProps> = ({ initialCreateOpen = false 
         }}
       />
 
+      {/* Question Form Modal (Create / Edit) */}
+      <QuestionFormModal
+        isOpen={formOpen}
+        onClose={() => {
+          setFormOpen(false);
+          setEditingQuestion(null);
+        }}
+        questionToEdit={editingQuestion}
+        onSuccess={() => loadData()}
+      />
+
       {/* Delete Confirmation Modal */}
       <ConfirmModal
-        isOpen={!!deletingQuestion}
-        title="Hapus Soal"
-        message="Apakah Anda yakin ingin menghapus soal ini? Tindakan ini akan menghapus soal secara permanen dari bank soal dan memperbarui statistik kuis."
-        confirmLabel="Hapus"
-        cancelLabel="Batal"
-        onConfirm={handleDeleteConfirm}
+        isOpen={Boolean(deletingQuestion)}
         onCancel={() => setDeletingQuestion(null)}
+        onConfirm={handleDeleteConfirm}
+        title="Hapus Butir Soal"
+        message={`Apakah Anda yakin ingin menghapus soal "${deletingQuestion?.question.slice(0, 80)}..."? Tindakan ini tidak dapat dibatalkan.`}
+        confirmLabel="Hapus Soal"
+        cancelLabel="Batal"
         isDanger={true}
       />
     </div>

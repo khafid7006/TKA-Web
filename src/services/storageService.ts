@@ -4,9 +4,9 @@ import { firestoreService } from './firebase';
 
 const STORAGE_KEYS = {
   PASSAGES: 'tka_passages',
-  QUESTIONS: 'tka_questions',
+  QUESTIONS: 'tka_questions_v2',
   RESULTS: 'tka_quiz_results',
-  INITIALIZED: 'tka_initialized_v1',
+  INITIALIZED: 'tka_initialized_v2',
 };
 
 // Event dispatched on storage mutation
@@ -49,10 +49,11 @@ export const storageService = {
       const passages = safeGet<Passage[]>(STORAGE_KEYS.PASSAGES, []);
       const questions = safeGet<Question[]>(STORAGE_KEYS.QUESTIONS, []);
 
-      // If never initialized or empty, populate with seed data
-      if (!isInit || passages.length === 0 || questions.length === 0) {
-        if (passages.length === 0) safeSet(STORAGE_KEYS.PASSAGES, SEED_PASSAGES);
-        if (questions.length === 0) safeSet(STORAGE_KEYS.QUESTIONS, SEED_QUESTIONS);
+      // If never initialized or questions count is less than 30 or missing metadata, populate with 2026 seed data
+      const needsReseed = !isInit || passages.length === 0 || questions.length < 30 || !questions[0]?.metadata;
+      if (needsReseed) {
+        safeSet(STORAGE_KEYS.PASSAGES, SEED_PASSAGES);
+        safeSet(STORAGE_KEYS.QUESTIONS, SEED_QUESTIONS);
         safeSet(STORAGE_KEYS.INITIALIZED, 'true');
       }
     } catch (e) {
